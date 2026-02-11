@@ -122,6 +122,15 @@ class PackersTracker {
     processScheduleData(data) {
         const events = data.events || [];
         
+        // Check if we're in the offseason
+        if (this.isOffseason(events)) {
+            this.displayOffseasonMessage();
+            this.displaySchedule(events);
+            this.showLastUpdated();
+            this.setupShareButtons();
+            return;
+        }
+        
         // Get completed games
         const completedGames = events.filter(event => {
             const status = event.competitions?.[0]?.status?.type?.name;
@@ -171,6 +180,38 @@ class PackersTracker {
         
         // Setup share buttons
         this.setupShareButtons();
+    }
+
+    isOffseason(events) {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        
+        // NFL season typically runs from September to February
+        // Offseason is roughly March through August
+        const isOffseasonMonth = now.getMonth() >= 2 && now.getMonth() <= 7; // March (2) through August (7)
+        
+        // Also check if there are no scheduled games in the near future (next 30 days)
+        const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+        const hasUpcomingGames = events.some(event => {
+            const gameDate = new Date(event.date);
+            const status = event.competitions?.[0]?.status?.type?.name;
+            return gameDate > now && gameDate <= thirtyDaysFromNow && status === 'STATUS_SCHEDULED';
+        });
+        
+        // We're in offseason if it's offseason months AND no upcoming games
+        return isOffseasonMonth && !hasUpcomingGames;
+    }
+    
+    displayOffseasonMessage() {
+        const answerEl = document.getElementById('answer');
+        const recordEl = document.getElementById('record');
+        
+        answerEl.innerHTML = `🏈<br>OFFSEASON`;
+        answerEl.className = 'answer offseason';
+        document.body.classList.remove('undefeated');
+        document.body.classList.add('offseason');
+        
+        recordEl.textContent = 'The season hasn\'t started yet!';
     }
 
     displayResult(isUndefeated, wins, losses, ties) {
@@ -562,9 +603,12 @@ class PackersTracker {
         const recordEl = document.getElementById('record');
         
         const isUndefeated = answerEl.textContent.includes('YES');
+        const isOffseason = answerEl.textContent.includes('OFFSEASON');
         const record = recordEl.textContent;
         
-        if (isUndefeated) {
+        if (isOffseason) {
+            return `🏈 Green Bay Packers offseason - can't wait for the new season! #GoPackGo`;
+        } else if (isUndefeated) {
             return `🧀 The Green Bay Packers are UNDEFEATED! ${record} 🧀 #GoPackGo`;
         } else {
             return `The Green Bay Packers are ${record} this season. #GoPackGo`;
