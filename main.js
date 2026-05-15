@@ -5,7 +5,7 @@ class PackersTracker {
         this.liveUpdateInterval = null;
         this.currentSeason = null;
         this.latestSeason = null;
-        this.earliestSeason = 1921;
+        this.earliestSeason = 1970;
         this.init();
     }
 
