@@ -22,17 +22,15 @@ class PackersTracker {
     setupSeasonSelector() {
         const prevBtn = document.getElementById('season-prev');
         const nextBtn = document.getElementById('season-next');
-        const prev10Btn = document.getElementById('season-prev10');
-        const next10Btn = document.getElementById('season-next10');
+        const firstBtn = document.getElementById('season-first');
+        const lastBtn = document.getElementById('season-last');
 
-        prev10Btn.addEventListener('click', () => {
-            const target = Math.max(this.earliestSeason, this.currentSeason - 10);
-            if (target !== this.currentSeason) this.loadSeason(target);
+        firstBtn.addEventListener('click', () => {
+            if (this.currentSeason !== this.earliestSeason) this.loadSeason(this.earliestSeason);
         });
 
-        next10Btn.addEventListener('click', () => {
-            const target = Math.min(this.latestSeason, this.currentSeason + 10);
-            if (target !== this.currentSeason) this.loadSeason(target);
+        lastBtn.addEventListener('click', () => {
+            if (this.currentSeason !== this.latestSeason) this.loadSeason(this.latestSeason);
         });
 
         prevBtn.addEventListener('click', () => {
@@ -52,14 +50,14 @@ class PackersTracker {
         const label = document.getElementById('season-label');
         const prevBtn = document.getElementById('season-prev');
         const nextBtn = document.getElementById('season-next');
-        const prev10Btn = document.getElementById('season-prev10');
-        const next10Btn = document.getElementById('season-next10');
+        const firstBtn = document.getElementById('season-first');
+        const lastBtn = document.getElementById('season-last');
 
         label.textContent = `${this.currentSeason} Season`;
         prevBtn.disabled = this.currentSeason <= this.earliestSeason;
         nextBtn.disabled = this.currentSeason >= this.latestSeason;
-        prev10Btn.disabled = Math.max(this.earliestSeason, this.currentSeason - 10) === this.currentSeason;
-        next10Btn.disabled = Math.min(this.latestSeason, this.currentSeason + 10) === this.currentSeason;
+        firstBtn.disabled = this.currentSeason <= this.earliestSeason;
+        lastBtn.disabled = this.currentSeason >= this.latestSeason;
     }
 
     async loadSeason(year) {
