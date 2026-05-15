@@ -184,8 +184,9 @@ class PackersTracker {
             this.updateSeasonSelector();
         }
 
-        // Check if we're in the offseason
-        if (this.isOffseason(events)) {
+        // Only show offseason message for the current/latest season, not past seasons
+        const isPastSeason = this.currentSeason && this.latestSeason && this.currentSeason < this.latestSeason;
+        if (!isPastSeason && this.isOffseason(events)) {
             this.displayOffseasonMessage();
             this.displaySchedule(events);
             this.showLastUpdated();
@@ -232,7 +233,7 @@ class PackersTracker {
 
         // Display result
         const isUndefeated = losses === 0 && wins > 0;
-        this.displayResult(isUndefeated, wins, losses, ties);
+        this.displayResult(isUndefeated, wins, losses, ties, isPastSeason);
         
         // Show full schedule
         this.displaySchedule(events);
@@ -285,7 +286,7 @@ class PackersTracker {
         recordEl.textContent = 'The season hasn\'t started yet!';
     }
 
-    displayResult(isUndefeated, wins, losses, ties) {
+    displayResult(isUndefeated, wins, losses, ties, isPastSeason = false) {
         const answerEl = document.getElementById('answer');
         const recordEl = document.getElementById('record');
         
@@ -302,7 +303,6 @@ class PackersTracker {
             document.body.classList.remove('undefeated');
         }
         
-        const isPastSeason = this.currentSeason && this.latestSeason && this.currentSeason < this.latestSeason;
         const recordLabel = isPastSeason ? 'Final Record' : 'Current Record';
         if (ties > 0) {
             recordEl.textContent = `${recordLabel}: ${wins}-${losses}-${ties}`;
