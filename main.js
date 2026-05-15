@@ -68,18 +68,21 @@ class PackersTracker {
     async fetchPackersData(season) {
         try {
             const seasonParam = season ? `&season=${season}` : '';
-            const [regularRes, postRes] = await Promise.all([
+            const [preRes, regularRes, postRes] = await Promise.all([
+                fetch(`${this.apiUrl}?seasontype=1${seasonParam}`),
                 fetch(`${this.apiUrl}?seasontype=2${seasonParam}`),
                 fetch(`${this.apiUrl}?seasontype=3${seasonParam}`),
             ]);
-            const [regularData, postData] = await Promise.all([
+            const [preData, regularData, postData] = await Promise.all([
+                preRes.json(),
                 regularRes.json(),
                 postRes.json(),
             ]);
 
+            const preEvents = (preData.events || []).map(e => ({ ...e, _seasonType: 'pre' }));
             const regularEvents = (regularData.events || []).map(e => ({ ...e, _seasonType: 'regular' }));
             const postEvents = (postData.events || []).map(e => ({ ...e, _seasonType: 'post' }));
-            const allEvents = [...regularEvents, ...postEvents];
+            const allEvents = [...preEvents, ...regularEvents, ...postEvents];
 
             const mergedData = { ...regularData, events: allEvents };
 
@@ -207,7 +210,7 @@ class PackersTracker {
         // Get completed games
         const completedGames = events.filter(event => {
             const status = event.competitions?.[0]?.status?.type?.name;
-            return status === 'STATUS_FINAL';
+            return status === 'STATUS_FINAL' && event._seasonType !== 'pre';
         });
 
         let wins = 0;
@@ -355,13 +358,15 @@ class PackersTracker {
         
         scheduleGrid.innerHTML = '';
 
-        let shownPlayoffDivider = false;
+        const sectionLabels = { pre: 'Preseason', regular: 'Regular Season', post: 'Playoffs' };
+        let currentSection = null;
         sortedEvents.forEach(event => {
-            if (!shownPlayoffDivider && event._seasonType === 'post') {
-                shownPlayoffDivider = true;
+            const section = event._seasonType;
+            if (section && section !== currentSection) {
+                currentSection = section;
                 const divider = document.createElement('div');
                 divider.className = 'season-divider';
-                divider.textContent = 'Playoffs';
+                divider.textContent = sectionLabels[section] || section;
                 scheduleGrid.appendChild(divider);
             }
             const gameItem = this.createGameItem(event, nextGame, liveGame, now);
