@@ -281,6 +281,11 @@ h1 {
     color: #ffb612;
 }
 
+.game-network {
+    opacity: 0.7;
+    font-style: italic;
+}
+
 .game-result {
     text-align: center;
     width: 100%;
