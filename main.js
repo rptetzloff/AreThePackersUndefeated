@@ -122,8 +122,9 @@ class PackersTracker {
     processScheduleData(data) {
         const events = data.events || [];
 
-        const season = data.season?.year || data.seasons?.[0]?.year;
-        const seasonType = data.season?.type?.abbreviation || data.season?.type?.name;
+        const seasonData = data.requestedSeason || data.season;
+        const season = seasonData?.year;
+        const seasonType = seasonData?.name;
         this.updateScheduleTitle(season, seasonType);
 
         // Check if we're in the offseason
@@ -190,7 +191,8 @@ class PackersTracker {
         const titleEl = document.getElementById('schedule-title');
         if (!titleEl) return;
         const yearLabel = year ? `${year} ` : '';
-        const typeLabel = seasonType && seasonType.toLowerCase() !== 'reg' && seasonType.toLowerCase() !== 'regular' ? ` (${seasonType})` : '';
+        const isRegular = !seasonType || seasonType.toLowerCase().includes('regular');
+        const typeLabel = !isRegular ? ` (${seasonType})` : '';
         titleEl.textContent = `📅 ${yearLabel}Season Schedule${typeLabel}`;
     }
 
