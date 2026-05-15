@@ -58,8 +58,8 @@ class PackersTracker {
         label.textContent = `${this.currentSeason} Season`;
         prevBtn.disabled = this.currentSeason <= this.earliestSeason;
         nextBtn.disabled = this.currentSeason >= this.latestSeason;
-        prev10Btn.disabled = this.currentSeason <= this.earliestSeason;
-        next10Btn.disabled = this.currentSeason >= this.latestSeason;
+        prev10Btn.disabled = Math.max(this.earliestSeason, this.currentSeason - 10) === this.currentSeason;
+        next10Btn.disabled = Math.min(this.latestSeason, this.currentSeason + 10) === this.currentSeason;
     }
 
     async loadSeason(year) {
