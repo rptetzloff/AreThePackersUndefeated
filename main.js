@@ -22,6 +22,8 @@ class PackersTracker {
     setupSeasonSelector() {
         const prevBtn = document.getElementById('season-prev');
         const nextBtn = document.getElementById('season-next');
+        const prev10Btn = document.getElementById('season-prev10');
+        const next10Btn = document.getElementById('season-next10');
         const firstBtn = document.getElementById('season-first');
         const lastBtn = document.getElementById('season-last');
 
@@ -33,16 +35,22 @@ class PackersTracker {
             if (this.currentSeason !== this.latestSeason) this.loadSeason(this.latestSeason);
         });
 
+        prev10Btn.addEventListener('click', () => {
+            const target = Math.max(this.earliestSeason, this.currentSeason - 10);
+            if (target !== this.currentSeason) this.loadSeason(target);
+        });
+
+        next10Btn.addEventListener('click', () => {
+            const target = Math.min(this.latestSeason, this.currentSeason + 10);
+            if (target !== this.currentSeason) this.loadSeason(target);
+        });
+
         prevBtn.addEventListener('click', () => {
-            if (this.currentSeason > this.earliestSeason) {
-                this.loadSeason(this.currentSeason - 1);
-            }
+            if (this.currentSeason > this.earliestSeason) this.loadSeason(this.currentSeason - 1);
         });
 
         nextBtn.addEventListener('click', () => {
-            if (this.currentSeason < this.latestSeason) {
-                this.loadSeason(this.currentSeason + 1);
-            }
+            if (this.currentSeason < this.latestSeason) this.loadSeason(this.currentSeason + 1);
         });
     }
 
@@ -50,12 +58,16 @@ class PackersTracker {
         const label = document.getElementById('season-label');
         const prevBtn = document.getElementById('season-prev');
         const nextBtn = document.getElementById('season-next');
+        const prev10Btn = document.getElementById('season-prev10');
+        const next10Btn = document.getElementById('season-next10');
         const firstBtn = document.getElementById('season-first');
         const lastBtn = document.getElementById('season-last');
 
         label.textContent = `${this.currentSeason} Season`;
         prevBtn.disabled = this.currentSeason <= this.earliestSeason;
         nextBtn.disabled = this.currentSeason >= this.latestSeason;
+        prev10Btn.disabled = this.currentSeason <= this.earliestSeason;
+        next10Btn.disabled = this.currentSeason >= this.latestSeason;
         firstBtn.disabled = this.currentSeason <= this.earliestSeason;
         lastBtn.disabled = this.currentSeason >= this.latestSeason;
     }
