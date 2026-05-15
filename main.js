@@ -244,9 +244,23 @@ class PackersTracker {
             }
         });
 
+        // Check for Super Bowl win
+        const superBowlWin = completedGames.some(event => {
+            const notes = event.competitions?.[0]?.notes || [];
+            const isSuperBowl = notes.some(n => /super bowl/i.test(n.headline || ''));
+            if (!isSuperBowl) return false;
+            const competitors = event.competitions[0].competitors;
+            let packersScore = 0, opponentScore = 0;
+            competitors.forEach(c => {
+                if (c.team.abbreviation === 'GB') packersScore = parseInt(c.score?.value) || 0;
+                else opponentScore = parseInt(c.score?.value) || 0;
+            });
+            return packersScore > opponentScore;
+        });
+
         // Display result
         const isUndefeated = losses === 0 && wins > 0;
-        this.displayResult(isUndefeated, wins, losses, ties, isPastSeason);
+        this.displayResult(isUndefeated, wins, losses, ties, isPastSeason, superBowlWin);
         
         // Show full schedule
         this.displaySchedule(events);
@@ -299,15 +313,19 @@ class PackersTracker {
         recordEl.textContent = 'The season hasn\'t started yet!';
     }
 
-    displayResult(isUndefeated, wins, losses, ties, isPastSeason = false) {
+    displayResult(isUndefeated, wins, losses, ties, isPastSeason = false, superBowlWin = false) {
         const answerEl = document.getElementById('answer');
         const recordEl = document.getElementById('record');
-        
+
         if (isUndefeated) {
             const cheeseBlocks = wins > 0 ? '🧀 '.repeat(wins).trim() : '';
             answerEl.innerHTML = `${cheeseBlocks}<br>YES!!!`;
             answerEl.className = 'answer yes';
             document.body.classList.add('undefeated');
+        } else if (superBowlWin) {
+            answerEl.innerHTML = `🏆🏈🧀<br>SUPER BOWL<br>CHAMPIONS!<br>🎉🎊🎉`;
+            answerEl.className = 'answer champions';
+            document.body.classList.remove('undefeated');
         } else {
             const cheeseBlocks = wins > 0 ? '🧀 '.repeat(wins).trim() + '<br>' : '';
             const frownFaces = losses > 0 ? '<br>' + '😢 '.repeat(losses).trim() : '';
