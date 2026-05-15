@@ -68,6 +68,11 @@ h1 {
     color: #ffb612;
 }
 
+.playoff-record {
+    font-size: 1.1rem;
+    opacity: 0.8;
+}
+
 .next-game {
     background: rgba(32, 55, 49, 0.8);
     padding: 1.5rem;
