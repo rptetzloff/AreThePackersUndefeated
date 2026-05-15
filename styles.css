@@ -15,7 +15,7 @@ body.undefeated {
     background: #203731 !important;
 }
 
-body:not(.undefeated) {
+body:not(.undefeated):not(.offseason) {
     border: 4px solid #f44336;
     box-sizing: border-box;
 }
