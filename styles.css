@@ -150,6 +150,48 @@ h1 {
     margin: 0 1rem;
 }
 
+.season-selector {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0 0.5rem;
+}
+
+.season-label {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #ffb612;
+    min-width: 120px;
+    text-align: center;
+}
+
+.season-nav {
+    background: rgba(255, 182, 18, 0.15);
+    border: 2px solid #ffb612;
+    color: #ffb612;
+    font-size: 1.6rem;
+    line-height: 1;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.season-nav:hover:not(:disabled) {
+    background: rgba(255, 182, 18, 0.3);
+    transform: scale(1.1);
+}
+
+.season-nav:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
 .last-updated {
     margin-top: 2rem;
     font-size: 0.9rem;
