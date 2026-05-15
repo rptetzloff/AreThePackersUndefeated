@@ -204,10 +204,8 @@ h1 {
 }
 
 .season-nav-jump {
-    font-size: 1.3rem;
     opacity: 0.75;
-    white-space: nowrap;
-    width: 3.5rem;
+    width: 3rem;
 }
 
 .season-nav:hover:not(:disabled) {
