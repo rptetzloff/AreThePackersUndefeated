@@ -197,6 +197,11 @@ h1 {
     flex-shrink: 0;
 }
 
+.season-nav-jump {
+    font-size: 1.3rem;
+    opacity: 0.75;
+}
+
 .season-nav:hover:not(:disabled) {
     background: rgba(255, 182, 18, 0.3);
     transform: scale(1.1);
