@@ -68,6 +68,11 @@ h1 {
     color: #ffb612;
 }
 
+.preseason-record {
+    font-size: 1.1rem;
+    opacity: 0.7;
+}
+
 .playoff-record {
     font-size: 1.1rem;
     opacity: 0.8;

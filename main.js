@@ -252,6 +252,11 @@ class PackersTracker {
             return { w, l, t };
         };
 
+        const completedPre = events.filter(event => {
+            const status = event.competitions?.[0]?.status?.type?.name;
+            return status === 'STATUS_FINAL' && event._seasonType === 'pre';
+        });
+
         const completedRegular = events.filter(event => {
             const status = event.competitions?.[0]?.status?.type?.name;
             return status === 'STATUS_FINAL' && event._seasonType === 'regular';
@@ -262,6 +267,7 @@ class PackersTracker {
             return status === 'STATUS_FINAL' && event._seasonType === 'post';
         });
 
+        const preRecord = countRecord(completedPre);
         const { w: wins, l: losses, t: ties } = countRecord(completedRegular);
         const postRecord = countRecord(completedPost);
 
@@ -283,7 +289,7 @@ class PackersTracker {
 
         // Display result
         const isUndefeated = losses === 0 && wins > 0;
-        this.displayResult(isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord);
+        this.displayResult(isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord);
 
         // Show full schedule
         this.displaySchedule(events, isPastSeason);
@@ -336,7 +342,7 @@ class PackersTracker {
         recordEl.textContent = 'The season hasn\'t started yet!';
     }
 
-    displayResult(isUndefeated, wins, losses, ties, isPastSeason = false, superBowlName = null, postRecord = null) {
+    displayResult(isUndefeated, wins, losses, ties, isPastSeason = false, superBowlName = null, postRecord = null, preRecord = null) {
         const superBowlWin = !!superBowlName;
         const answerEl = document.getElementById('answer');
         const recordEl = document.getElementById('record');
@@ -359,19 +365,30 @@ class PackersTracker {
         }
 
         const recordLabel = isPastSeason ? 'Final Record' : 'Current Record';
-        let recordText = ties > 0
+        const regularText = ties > 0
             ? `${recordLabel}: ${wins}-${losses}-${ties}`
             : `${recordLabel}: ${wins}-${losses}`;
 
+        const hasPreGames = preRecord && (preRecord.w > 0 || preRecord.l > 0);
         const hasPostGames = postRecord && (postRecord.w > 0 || postRecord.l > 0);
-        if (hasPostGames) {
-            const postText = postRecord.t > 0
+
+        const preText = hasPreGames
+            ? (preRecord.t > 0
+                ? `Preseason: ${preRecord.w}-${preRecord.l}-${preRecord.t}`
+                : `Preseason: ${preRecord.w}-${preRecord.l}`)
+            : null;
+
+        const postText = hasPostGames
+            ? (postRecord.t > 0
                 ? `Playoff Record: ${postRecord.w}-${postRecord.l}-${postRecord.t}`
-                : `Playoff Record: ${postRecord.w}-${postRecord.l}`;
-            recordEl.innerHTML = `${recordText}<br><span class="playoff-record">${postText}</span>`;
-        } else {
-            recordEl.textContent = recordText;
-        }
+                : `Playoff Record: ${postRecord.w}-${postRecord.l}`)
+            : null;
+
+        let html = '';
+        if (preText) html += `<span class="preseason-record">${preText}</span><br>`;
+        html += regularText;
+        if (postText) html += `<br><span class="playoff-record">${postText}</span>`;
+        recordEl.innerHTML = html;
     }
 
     displaySchedule(events, isPastSeason = false) {
