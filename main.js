@@ -226,6 +226,7 @@ class PackersTracker {
         this.displayResult(isUndefeated, wins, losses, ties, true, superBowlName, postRecord, null);
         this.displayCsvSchedule(games, season);
         this.showLastUpdated();
+        this.setDataCredit(true);
         this.setupShareButtons();
     }
 
@@ -462,6 +463,7 @@ class PackersTracker {
         this.displayResult(isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord);
         this.displaySchedule(events, isPastSeason);
         this.showLastUpdated();
+        this.setDataCredit(false);
         this.setupShareButtons();
     }
 
@@ -847,6 +849,11 @@ class PackersTracker {
                 console.error('Error updating live game:', error);
             }
         }, 30000);
+    }
+
+    setDataCredit(show) {
+        const el = document.getElementById('data-credit');
+        if (el) el.style.display = show ? '' : 'none';
     }
 
     showLastUpdated() {
