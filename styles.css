@@ -510,9 +510,6 @@ h1 {
     color: rgba(255, 255, 255, 0.85);
 }
 
-.github-icon {
-    width: 16px;
-    height: 16px;
-    fill: currentColor;
-    flex-shrink: 0;
+.github-link .mdi {
+    font-size: 1rem;
 }

@@ -211,7 +211,7 @@ class PackersTracker {
         }
         this.updateSeasonSelector();
 
-        document.getElementById('schedule-title').textContent = `📅 ${season} Season Schedule`;
+        document.getElementById('schedule-title').innerHTML = `<i class="mdi mdi-calendar-month"></i> ${season} Season Schedule`;
 
         // Tally regular season and playoff records from CSV
         let wins = 0, losses = 0, ties = 0;
@@ -494,7 +494,7 @@ class PackersTracker {
         const yearLabel = year ? `${year} ` : '';
         const isRegular = !seasonType || seasonType.toLowerCase().includes('regular');
         const typeLabel = !isRegular ? ` (${seasonType})` : '';
-        titleEl.textContent = `📅 ${yearLabel}Season Schedule${typeLabel}`;
+        titleEl.innerHTML = `<i class="mdi mdi-calendar-month"></i> ${yearLabel}Season Schedule${typeLabel}`;
     }
 
     isOffseason(events) {
@@ -935,7 +935,7 @@ class PackersTracker {
         try {
             await navigator.clipboard.writeText(shareText);
             const originalText = copyBtn.innerHTML;
-            copyBtn.innerHTML = '<span class="share-icon">✅</span>Copied!';
+            copyBtn.innerHTML = '<i class="mdi mdi-check share-icon"></i>Copied!';
             copyBtn.classList.add('copy-success');
             setTimeout(() => {
                 copyBtn.innerHTML = originalText;
@@ -950,7 +950,7 @@ class PackersTracker {
             document.body.removeChild(textArea);
 
             const originalText = copyBtn.innerHTML;
-            copyBtn.innerHTML = '<span class="share-icon">✅</span>Copied!';
+            copyBtn.innerHTML = '<i class="mdi mdi-check share-icon"></i>Copied!';
             copyBtn.classList.add('copy-success');
             setTimeout(() => {
                 copyBtn.innerHTML = originalText;
