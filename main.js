@@ -564,7 +564,8 @@ class PackersTracker {
 
         if (isUndefeated) {
             const cheeseHtml = emojis && wins > 0 ? this.emojiRowHtml('🧀', wins) : '';
-            answerEl.innerHTML = `${cheeseHtml}YES!!!`;
+            const footballHtml = emojis && !isPastSeason ? this.emojiRowHtml('🏈', 1) : '';
+            answerEl.innerHTML = `${cheeseHtml}YES!!!${footballHtml}`;
             answerEl.className = 'answer yes';
             document.body.classList.add('undefeated');
         } else if (superBowlName) {
@@ -573,8 +574,9 @@ class PackersTracker {
             document.body.classList.remove('undefeated');
         } else {
             const cheeseHtml = emojis && wins > 0 ? this.emojiRowHtml('🧀', wins) : '';
+            const footballHtml = emojis && !isPastSeason ? this.emojiRowHtml('🏈', 1) : '';
             const frownHtml = emojis && losses > 0 ? this.emojiRowHtml('😢', losses) : '';
-            answerEl.innerHTML = `${cheeseHtml}NO${frownHtml}`;
+            answerEl.innerHTML = `${cheeseHtml}NO${footballHtml}${frownHtml}`;
             answerEl.className = 'answer no';
             document.body.classList.remove('undefeated');
         }
