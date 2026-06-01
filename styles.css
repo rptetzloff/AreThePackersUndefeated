@@ -321,7 +321,7 @@ h1 {
 
 .schedule-section {
     background: rgba(32, 55, 49, 0.8);
-    margin: 0.25rem 0;
+    margin: 0.25rem auto;
     width: 572px;
     box-sizing: border-box;
     padding: 1.5rem;
