@@ -1099,12 +1099,39 @@ class PackersTracker {
         const backdrop = modal.querySelector('.gallery-backdrop');
         const closeBtn = document.getElementById('gallery-close');
 
-        const close = () => this.closeGallery();
-        backdrop.addEventListener('click', close);
-        closeBtn.addEventListener('click', close);
+        backdrop.addEventListener('click', () => this.closeGallery());
+        closeBtn.addEventListener('click', () => this.closeGallery());
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !modal.hidden) close();
+            if (e.key === 'Escape') {
+                if (!document.getElementById('lightbox').hidden) this.closeLightbox();
+                else if (!modal.hidden) this.closeGallery();
+            }
         });
+
+        const lightbox = document.getElementById('lightbox');
+        document.getElementById('lightbox-close').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.closeLightbox();
+        });
+        lightbox.addEventListener('click', () => this.closeLightbox());
+    }
+
+    openLightbox(photo) {
+        const lightbox = document.getElementById('lightbox');
+        document.getElementById('lightbox-img').src = photo.url;
+        document.getElementById('lightbox-img').alt = photo.caption;
+        document.getElementById('lightbox-caption').textContent = photo.caption;
+        const licenseEl = document.getElementById('lightbox-license');
+        if (photo.license_url) {
+            licenseEl.innerHTML = `License: <a href="${photo.license_url}" target="_blank" rel="noopener noreferrer">${photo.license}</a>`;
+        } else {
+            licenseEl.textContent = `License: ${photo.license}`;
+        }
+        lightbox.hidden = false;
+    }
+
+    closeLightbox() {
+        document.getElementById('lightbox').hidden = true;
     }
 
     openGallery(season) {
@@ -1124,6 +1151,7 @@ class PackersTracker {
             img.src = p.url;
             img.alt = p.caption;
             img.loading = 'lazy';
+            img.addEventListener('click', () => this.openLightbox(p));
 
             const info = document.createElement('div');
             info.className = 'gallery-item-info';

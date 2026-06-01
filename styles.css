@@ -741,6 +741,7 @@ h1 {
     object-fit: cover;
     display: block;
     background: rgba(0, 0, 0, 0.4);
+    cursor: zoom-in;
 }
 
 .gallery-item-info {
@@ -772,6 +773,98 @@ h1 {
 
 .gallery-license a:hover {
     color: #ffb612;
+}
+
+/* Lightbox */
+.lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(6px);
+    cursor: zoom-out;
+    animation: lightboxIn 0.18s ease-out;
+}
+
+.lightbox[hidden] {
+    display: none;
+}
+
+@keyframes lightboxIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.lightbox img {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.8);
+    animation: lightboxImgIn 0.18s ease-out;
+}
+
+@keyframes lightboxImgIn {
+    from { transform: scale(0.96); }
+    to   { transform: scale(1); }
+}
+
+.lightbox-info {
+    margin-top: 1rem;
+    text-align: center;
+    max-width: 640px;
+    pointer-events: none;
+}
+
+.lightbox-caption {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.4;
+    margin-bottom: 0.4rem;
+}
+
+.lightbox-license {
+    font-size: 0.75rem;
+    color: rgba(255, 182, 18, 0.7);
+    pointer-events: auto;
+}
+
+.lightbox-license a {
+    color: rgba(255, 182, 18, 0.7);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.lightbox-license a:hover {
+    color: #ffb612;
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.5rem;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+
+.lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
 }
 
 @media (max-width: 600px) {
