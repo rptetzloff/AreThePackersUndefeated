@@ -35,12 +35,6 @@ class PackersTracker {
 
     async init() {
         try {
-            window.addEventListener('resize', () => {
-                if (this._lastResultArgs) {
-                    this.displayResult(...this._lastResultArgs);
-                }
-            });
-
             const [gamesRes, recordsRes] = await Promise.all([
                 fetch('./data/packers_games.csv'),
                 fetch('./data/packers_season_records.csv'),
@@ -540,35 +534,19 @@ class PackersTracker {
         recordEl.textContent = 'The season hasn\'t started yet!';
     }
 
-    emojiRows(emoji, count, perRow) {
+    emojiRowHtml(emoji, count) {
         if (count <= 0) return '';
-        const rows = Math.ceil(count / perRow);
-        const base = Math.floor(count / rows);
-        const extra = count % rows;
-        const lines = [];
-        for (let i = 0; i < rows; i++) {
-            const n = base + (i < extra ? 1 : 0);
-            lines.push((emoji + ' ').repeat(n).trimEnd());
-        }
-        return lines.join('<br>');
-    }
-
-    emojisPerRow() {
-        const container = document.querySelector('.container');
-        const width = (container ? container.clientWidth : 400) - 64; // subtract answer padding (2 * 1rem * 2 sides + buffer)
-        return Math.max(1, Math.floor(width / 65));
+        const spans = Array.from({ length: count }, () => `<span>${emoji}</span>`).join('');
+        return `<div class="emoji-row">${spans}</div>`;
     }
 
     displayResult(isUndefeated, wins, losses, ties, isPastSeason = false, superBowlName = null, postRecord = null, preRecord = null) {
         const answerEl = document.getElementById('answer');
         const recordEl = document.getElementById('record');
 
-        this._lastResultArgs = [isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord];
-
         if (isUndefeated) {
-            const perRow = this.emojisPerRow();
-            const cheeseRows = wins > 0 ? this.emojiRows('🧀', wins, perRow) + '<br>' : '';
-            answerEl.innerHTML = `${cheeseRows}YES!!!`;
+            const cheeseHtml = wins > 0 ? this.emojiRowHtml('🧀', wins) : '';
+            answerEl.innerHTML = `${cheeseHtml}YES!!!`;
             answerEl.className = 'answer yes';
             document.body.classList.add('undefeated');
         } else if (superBowlName) {
@@ -576,10 +554,9 @@ class PackersTracker {
             answerEl.className = 'answer champions';
             document.body.classList.remove('undefeated');
         } else {
-            const perRow = this.emojisPerRow();
-            const cheeseRows = wins > 0 ? this.emojiRows('🧀', wins, perRow) + '<br>' : '';
-            const frownRows = losses > 0 ? '<br>' + this.emojiRows('😢', losses, perRow) : '';
-            answerEl.innerHTML = `${cheeseRows}NO${frownRows}`;
+            const cheeseHtml = wins > 0 ? this.emojiRowHtml('🧀', wins) : '';
+            const frownHtml = losses > 0 ? this.emojiRowHtml('😢', losses) : '';
+            answerEl.innerHTML = `${cheeseHtml}NO${frownHtml}`;
             answerEl.className = 'answer no';
             document.body.classList.remove('undefeated');
         }
