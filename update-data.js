@@ -51,6 +51,47 @@ function parseCsv(raw) {
     });
 }
 
+const NFL_TEAM_NAMES = {
+    ARI: 'Arizona Cardinals',
+    ATL: 'Atlanta Falcons',
+    BAL: 'Baltimore Ravens',
+    BUF: 'Buffalo Bills',
+    CAR: 'Carolina Panthers',
+    CHI: 'Chicago Bears',
+    CIN: 'Cincinnati Bengals',
+    CLE: 'Cleveland Browns',
+    DAL: 'Dallas Cowboys',
+    DEN: 'Denver Broncos',
+    DET: 'Detroit Lions',
+    GB:  'Green Bay Packers',
+    HOU: 'Houston Texans',
+    IND: 'Indianapolis Colts',
+    JAC: 'Jacksonville Jaguars',
+    JAX: 'Jacksonville Jaguars',
+    KC:  'Kansas City Chiefs',
+    LA:  'Los Angeles Rams',
+    LAC: 'Los Angeles Chargers',
+    LAR: 'Los Angeles Rams',
+    LV:  'Las Vegas Raiders',
+    MIA: 'Miami Dolphins',
+    MIN: 'Minnesota Vikings',
+    NE:  'New England Patriots',
+    NO:  'New Orleans Saints',
+    NYG: 'New York Giants',
+    NYJ: 'New York Jets',
+    OAK: 'Oakland Raiders',
+    PHI: 'Philadelphia Eagles',
+    PIT: 'Pittsburgh Steelers',
+    SD:  'San Diego Chargers',
+    SEA: 'Seattle Seahawks',
+    SF:  'San Francisco 49ers',
+    STL: 'St. Louis Rams',
+    TB:  'Tampa Bay Buccaneers',
+    TEN: 'Tennessee Titans',
+    WAS: 'Washington Commanders',
+    WSH: 'Washington Commanders',
+};
+
 // Map a nflverse games.csv row to our internal format
 function mapNflverseRow(r) {
     const season = parseInt(r.season);
@@ -65,7 +106,8 @@ function mapNflverseRow(r) {
 
     const packersScore = isHome ? homeScore : awayScore;
     const oppScore = isHome ? awayScore : homeScore;
-    const oppTeam = isHome ? r.away_team : r.home_team;
+    const oppAbbr = isHome ? r.away_team : r.home_team;
+    const oppTeam = NFL_TEAM_NAMES[oppAbbr] ?? oppAbbr;
 
     const result = packersScore > oppScore ? 'WIN' : packersScore < oppScore ? 'LOSS' : 'TIE';
 
