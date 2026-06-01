@@ -35,6 +35,16 @@ class PackersTracker {
 
     async init() {
         try {
+            const toggle = document.getElementById('emoji-toggle');
+            toggle.checked = this.showEmojis;
+            toggle.addEventListener('change', () => {
+                localStorage.setItem('showEmojis', toggle.checked ? 'true' : 'false');
+                if (this._lastResult) {
+                    const { isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord } = this._lastResult;
+                    this.displayResult(isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord);
+                }
+            });
+
             const [gamesRes, recordsRes] = await Promise.all([
                 fetch('./data/packers_games.csv'),
                 fetch('./data/packers_season_records.csv'),
@@ -534,6 +544,10 @@ class PackersTracker {
         recordEl.textContent = 'The season hasn\'t started yet!';
     }
 
+    get showEmojis() {
+        return localStorage.getItem('showEmojis') !== 'false';
+    }
+
     emojiRowHtml(emoji, count) {
         if (count <= 0) return '';
         const spans = Array.from({ length: count }, () => `<span>${emoji}</span>`).join('');
@@ -544,8 +558,12 @@ class PackersTracker {
         const answerEl = document.getElementById('answer');
         const recordEl = document.getElementById('record');
 
+        this._lastResult = { isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord };
+
+        const emojis = this.showEmojis;
+
         if (isUndefeated) {
-            const cheeseHtml = wins > 0 ? this.emojiRowHtml('🧀', wins) : '';
+            const cheeseHtml = emojis && wins > 0 ? this.emojiRowHtml('🧀', wins) : '';
             answerEl.innerHTML = `${cheeseHtml}YES!!!`;
             answerEl.className = 'answer yes';
             document.body.classList.add('undefeated');
@@ -554,8 +572,8 @@ class PackersTracker {
             answerEl.className = 'answer champions';
             document.body.classList.remove('undefeated');
         } else {
-            const cheeseHtml = wins > 0 ? this.emojiRowHtml('🧀', wins) : '';
-            const frownHtml = losses > 0 ? this.emojiRowHtml('😢', losses) : '';
+            const cheeseHtml = emojis && wins > 0 ? this.emojiRowHtml('🧀', wins) : '';
+            const frownHtml = emojis && losses > 0 ? this.emojiRowHtml('😢', losses) : '';
             answerEl.innerHTML = `${cheeseHtml}NO${frownHtml}`;
             answerEl.className = 'answer no';
             document.body.classList.remove('undefeated');
