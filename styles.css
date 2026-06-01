@@ -9,6 +9,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    min-width: 572px;
 }
 
 body.undefeated {
@@ -321,7 +322,7 @@ h1 {
 .schedule-section {
     background: rgba(32, 55, 49, 0.8);
     margin: 0.25rem 0;
-    width: 472px;
+    width: 572px;
     box-sizing: border-box;
     padding: 1.5rem;
     backdrop-filter: blur(10px);
@@ -512,7 +513,7 @@ h1 {
     }
     
     .schedule-section {
-        width: min(472px, 100vw - 2rem);
+        width: 572px;
         padding: 1rem;
         margin: 1rem 0;
         box-sizing: border-box;
