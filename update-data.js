@@ -88,22 +88,14 @@ function mapNflverseRow(r) {
     return {
         date: r.gameday,
         season,
-        neutral: r.location === 'Neutral' ? 1 : 0,
         regular_season: isRegular ? 1 : 0,
         playoff: isPlayoff ? 1 : 0,
         superbowl: isSuperBowl ? r.game_type : '',
-        team1: 'GB',
-        team2: oppTeam,
-        team1_name: 'Green Bay Packers',
-        team2_name: oppTeam,
         Opponent: oppTeam,
         'Packers Win': result,
         packers_score: packersScore,
         opponent_score: oppScore,
         location,
-        season_wins: 0,
-        season_losses: 0,
-        season_ties: 0,
     };
 }
 
@@ -129,14 +121,12 @@ function buildSeasonRecords(games) {
 
 function rowToCsv(r) {
     return [
-        r.date, r.season, r.neutral, r.regular_season, r.playoff, r.superbowl,
-        r.team1, r.team2, r.team1_name, r.team2_name, r.Opponent,
-        r['Packers Win'], r.packers_score, r.opponent_score, r.location,
-        r.season_wins, r.season_losses, r.season_ties,
+        r.date, r.season, r.regular_season, r.playoff, r.superbowl,
+        r.Opponent, r['Packers Win'], r.packers_score, r.opponent_score, r.location,
     ].join(',');
 }
 
-const GAMES_HEADER = 'date,season,neutral,regular_season,playoff,superbowl,team1,team2,team1_name,team2_name,Opponent,Packers Win,packers_score,opponent_score,location,season_wins,season_losses,season_ties';
+const GAMES_HEADER = 'date,season,regular_season,playoff,superbowl,Opponent,Packers Win,packers_score,opponent_score,location';
 const RECORDS_HEADER = 'season,reg_w,reg_l,reg_t,post_w,post_l,post_t';
 
 async function main() {
