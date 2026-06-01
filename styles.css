@@ -173,16 +173,16 @@ h1 {
 .season-selector {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    justify-content: center;
+    gap: 0.5rem;
     margin: 1rem auto 0.5rem;
-    width: 572px;
 }
 
 .season-label {
     font-size: 1.1rem;
     font-weight: bold;
     color: #ffb612;
-    flex: 1;
+    min-width: 8rem;
     text-align: center;
 }
 
@@ -525,20 +525,19 @@ h1 {
     }
 
     .season-selector {
-        display: grid;
-        grid-template-columns: repeat(3, auto);
-        grid-template-rows: auto auto auto;
+        flex-wrap: wrap;
         justify-content: center;
-        gap: 0.5rem;
+        gap: 0.4rem;
+        width: 100%;
     }
 
-    .season-selector #season-first  { grid-column: 1; grid-row: 1; }
-    .season-selector #season-prev10 { grid-column: 2; grid-row: 1; }
-    .season-selector #season-prev   { grid-column: 3; grid-row: 1; }
-    .season-selector #season-label  { grid-column: 1 / 4; grid-row: 2; text-align: center; }
-    .season-selector #season-next   { grid-column: 1; grid-row: 3; }
-    .season-selector #season-next10 { grid-column: 2; grid-row: 3; }
-    .season-selector #season-last   { grid-column: 3; grid-row: 3; }
+    .season-selector #season-first,
+    .season-selector #season-prev10,
+    .season-selector #season-prev  { order: 1; }
+    .season-selector #season-label { order: 2; width: 100%; }
+    .season-selector #season-next,
+    .season-selector #season-next10,
+    .season-selector #season-last  { order: 3; }
 
     .schedule-section h3 {
         margin-bottom: 1.5rem;
