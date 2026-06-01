@@ -39,7 +39,9 @@ class PackersTracker {
             toggle.checked = this.showEmojis;
             toggle.addEventListener('change', () => {
                 localStorage.setItem('showEmojis', toggle.checked ? 'true' : 'false');
-                if (this._lastResult) {
+                if (this._isOffseason) {
+                    this.displayOffseasonMessage();
+                } else if (this._lastResult) {
                     const { isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord } = this._lastResult;
                     this.displayResult(isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord);
                 }
@@ -536,7 +538,10 @@ class PackersTracker {
         const answerEl = document.getElementById('answer');
         const recordEl = document.getElementById('record');
 
-        answerEl.innerHTML = `🏈<br>OFFSEASON`;
+        const footballHtml = this.showEmojis ? '🏈<br>' : '';
+        this._lastResult = null;
+        this._isOffseason = true;
+        answerEl.innerHTML = `${footballHtml}OFFSEASON`;
         answerEl.className = 'answer offseason';
         document.body.classList.remove('undefeated');
         document.body.classList.add('offseason');
@@ -559,6 +564,7 @@ class PackersTracker {
         const recordEl = document.getElementById('record');
 
         this._lastResult = { isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord };
+        this._isOffseason = false;
 
         const emojis = this.showEmojis;
 
