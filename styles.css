@@ -524,6 +524,22 @@ h1 {
         max-height: 400px;
     }
 
+    .season-selector {
+        display: grid;
+        grid-template-columns: repeat(3, auto);
+        grid-template-rows: auto auto auto;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .season-selector #season-first  { grid-column: 1; grid-row: 1; }
+    .season-selector #season-prev10 { grid-column: 2; grid-row: 1; }
+    .season-selector #season-prev   { grid-column: 3; grid-row: 1; }
+    .season-selector #season-label  { grid-column: 1 / 4; grid-row: 2; text-align: center; }
+    .season-selector #season-next   { grid-column: 1; grid-row: 3; }
+    .season-selector #season-next10 { grid-column: 2; grid-row: 3; }
+    .season-selector #season-last   { grid-column: 3; grid-row: 3; }
+
     .schedule-section h3 {
         margin-bottom: 1.5rem;
     }
