@@ -534,13 +534,32 @@ class PackersTracker {
         recordEl.textContent = 'The season hasn\'t started yet!';
     }
 
+    emojiRows(emoji, count, perRow) {
+        if (count <= 0) return '';
+        const rows = Math.ceil(count / perRow);
+        const base = Math.floor(count / rows);
+        const extra = count % rows;
+        const lines = [];
+        for (let i = 0; i < rows; i++) {
+            const n = base + (i < extra ? 1 : 0);
+            lines.push((emoji + ' ').repeat(n).trimEnd());
+        }
+        return lines.join('<br>');
+    }
+
+    emojisPerRow(answerEl) {
+        const width = answerEl.offsetWidth || 400;
+        return Math.max(1, Math.floor(width / 65));
+    }
+
     displayResult(isUndefeated, wins, losses, ties, isPastSeason = false, superBowlName = null, postRecord = null, preRecord = null) {
         const answerEl = document.getElementById('answer');
         const recordEl = document.getElementById('record');
 
         if (isUndefeated) {
-            const cheeseBlocks = wins > 0 ? '🧀 '.repeat(wins).trim() : '';
-            answerEl.innerHTML = `${cheeseBlocks}<br>YES!!!`;
+            const perRow = this.emojisPerRow(answerEl);
+            const cheeseRows = wins > 0 ? this.emojiRows('🧀', wins, perRow) + '<br>' : '';
+            answerEl.innerHTML = `${cheeseRows}YES!!!`;
             answerEl.className = 'answer yes';
             document.body.classList.add('undefeated');
         } else if (superBowlName) {
@@ -548,9 +567,10 @@ class PackersTracker {
             answerEl.className = 'answer champions';
             document.body.classList.remove('undefeated');
         } else {
-            const cheeseBlocks = wins > 0 ? '🧀 '.repeat(wins).trim() + '<br>' : '';
-            const frownFaces = losses > 0 ? '<br>' + '😢 '.repeat(losses).trim() : '';
-            answerEl.innerHTML = `${cheeseBlocks}NO${frownFaces}`;
+            const perRow = this.emojisPerRow(answerEl);
+            const cheeseRows = wins > 0 ? this.emojiRows('🧀', wins, perRow) + '<br>' : '';
+            const frownRows = losses > 0 ? '<br>' + this.emojiRows('😢', losses, perRow) : '';
+            answerEl.innerHTML = `${cheeseRows}NO${frownRows}`;
             answerEl.className = 'answer no';
             document.body.classList.remove('undefeated');
         }
