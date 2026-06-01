@@ -145,18 +145,40 @@ async function main() {
     console.log(`Downloaded ${nflverseRaw.length} bytes`);
 
     const nflverseRows = parseCsv(nflverseRaw);
-    const newGames = nflverseRows
+    const incomingGames = nflverseRows
         .map(mapNflverseRow)
         .filter(r => r !== null && r.season >= 1999);
 
-    console.log(`Mapped ${newGames.length} GB games (1999–present) from nflverse`);
+    console.log(`Mapped ${incomingGames.length} GB games (1999–present) from nflverse`);
 
-    // Load existing pre-1999 base (FiveThirtyEight)
+    // Load all existing games
     const baseRaw = readFileSync('./data/packers_games.csv', 'utf8');
-    const baseGames = parseCsv(baseRaw).filter(g => parseInt(g.season) < 1999);
-    console.log(`Loaded ${baseGames.length} base games (pre-1999, FiveThirtyEight)`);
+    const existingGames = parseCsv(baseRaw);
+    const pre1999 = existingGames.filter(g => parseInt(g.season) < 1999);
+    console.log(`Loaded ${pre1999.length} base games (pre-1999, FiveThirtyEight)`);
 
-    const allGames = [...baseGames, ...newGames].sort((a, b) => {
+    // Build a lookup of existing 1999+ rows keyed by date+opponent
+    const existingMap = new Map();
+    existingGames
+        .filter(g => parseInt(g.season) >= 1999)
+        .forEach(g => existingMap.set(`${g.date}|${g.Opponent}`, g));
+
+    // Upsert: keep existing row if it already has a score, otherwise use incoming
+    let kept = 0, updated = 0;
+    const merged1999 = incomingGames.map(incoming => {
+        const key = `${incoming.date}|${incoming.Opponent}`;
+        const existing = existingMap.get(key);
+        if (existing && existing['Packers Win'] !== '') {
+            kept++;
+            return existing;
+        }
+        updated++;
+        return incoming;
+    });
+
+    console.log(`Upsert: ${kept} rows kept from CSV, ${updated} rows updated from nflverse`);
+
+    const allGames = [...pre1999, ...merged1999].sort((a, b) => {
         if (a.season !== b.season) return a.season - b.season;
         return new Date(a.date) - new Date(b.date);
     });
