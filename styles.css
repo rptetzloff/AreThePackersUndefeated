@@ -9,8 +9,8 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-width: 572px;
 }
+
 
 body.undefeated {
     background: #203731 !important;
@@ -513,7 +513,7 @@ h1 {
     }
     
     .schedule-section {
-        width: 572px;
+        width: calc(100vw - 2rem);
         padding: 1rem;
         margin: 1rem 0;
         box-sizing: border-box;
