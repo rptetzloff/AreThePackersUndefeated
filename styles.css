@@ -321,7 +321,8 @@ h1 {
 .schedule-section {
     background: rgba(32, 55, 49, 0.8);
     margin: 0.25rem 0;
-    min-width: 550px;
+    width: 472px;
+    box-sizing: border-box;
     padding: 1.5rem;
     backdrop-filter: blur(10px);
     border: 2px solid #ffb612;
@@ -341,6 +342,27 @@ h1 {
     gap: 0.8rem;
     max-height: 400px;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #ffb612 #203731;
+}
+
+.schedule-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.schedule-grid::-webkit-scrollbar-track {
+    background: #203731;
+    border-radius: 4px;
+}
+
+.schedule-grid::-webkit-scrollbar-thumb {
+    background: #ffb612;
+    border-radius: 4px;
+    border: 1px solid #203731;
+}
+
+.schedule-grid::-webkit-scrollbar-thumb:hover {
+    background: #ffd050;
 }
 
 .game-item {
@@ -490,24 +512,19 @@ h1 {
     }
     
     .schedule-section {
+        width: min(472px, 100vw - 2rem);
         padding: 1rem;
         margin: 1rem 0;
-        width: 100%;
         box-sizing: border-box;
         border-radius: 10px;
-        padding-right: 1.5rem;
     }
-    
+
     .schedule-grid {
         max-height: 400px;
     }
-    
+
     .schedule-section h3 {
         margin-bottom: 1.5rem;
-    }
-    
-    .schedule-section {
-        min-width: 100%;
     }
 }
 
