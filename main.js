@@ -1102,9 +1102,12 @@ class PackersTracker {
         backdrop.addEventListener('click', () => this.closeGallery());
         closeBtn.addEventListener('click', () => this.closeGallery());
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (!document.getElementById('lightbox').hidden) this.closeLightbox();
-                else if (!modal.hidden) this.closeGallery();
+            if (!document.getElementById('lightbox').hidden) {
+                if (e.key === 'Escape') this.closeLightbox();
+                else if (e.key === 'ArrowLeft') this.stepLightbox(-1);
+                else if (e.key === 'ArrowRight') this.stepLightbox(1);
+            } else if (!modal.hidden) {
+                if (e.key === 'Escape') this.closeGallery();
             }
         });
 
@@ -1113,11 +1116,29 @@ class PackersTracker {
             e.stopPropagation();
             this.closeLightbox();
         });
+        document.getElementById('lightbox-prev').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.stepLightbox(-1);
+        });
+        document.getElementById('lightbox-next').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.stepLightbox(1);
+        });
         lightbox.addEventListener('click', () => this.closeLightbox());
     }
 
-    openLightbox(photo) {
-        const lightbox = document.getElementById('lightbox');
+    openLightbox(photo, photos) {
+        this._lightboxPhotos = photos;
+        this._lightboxIndex = photos.indexOf(photo);
+        this._renderLightbox();
+        document.getElementById('lightbox').hidden = false;
+    }
+
+    _renderLightbox() {
+        const photos = this._lightboxPhotos;
+        const idx = this._lightboxIndex;
+        const photo = photos[idx];
+
         document.getElementById('lightbox-img').src = photo.url;
         document.getElementById('lightbox-img').alt = photo.caption;
         document.getElementById('lightbox-caption').textContent = photo.caption;
@@ -1127,7 +1148,15 @@ class PackersTracker {
         } else {
             licenseEl.textContent = `License: ${photo.license}`;
         }
-        lightbox.hidden = false;
+        document.getElementById('lightbox-prev').disabled = idx === 0;
+        document.getElementById('lightbox-next').disabled = idx === photos.length - 1;
+    }
+
+    stepLightbox(dir) {
+        const next = this._lightboxIndex + dir;
+        if (next < 0 || next >= this._lightboxPhotos.length) return;
+        this._lightboxIndex = next;
+        this._renderLightbox();
     }
 
     closeLightbox() {
@@ -1151,7 +1180,7 @@ class PackersTracker {
             img.src = p.url;
             img.alt = p.caption;
             img.loading = 'lazy';
-            img.addEventListener('click', () => this.openLightbox(p));
+            img.addEventListener('click', () => this.openLightbox(p, photos));
 
             const info = document.createElement('div');
             info.className = 'gallery-item-info';
