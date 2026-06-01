@@ -9,6 +9,37 @@ function parseCsv(raw) {
     });
 }
 
+function parseCsvQuoted(raw) {
+    const lines = raw.trim().split('\n');
+    const headers = splitCsvLine(lines[0]);
+    return lines.slice(1).map(line => {
+        const vals = splitCsvLine(line);
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = (vals[i] || ''); });
+        return obj;
+    });
+}
+
+function splitCsvLine(line) {
+    const result = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+            else inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+            result.push(cur.trim());
+            cur = '';
+        } else {
+            cur += ch;
+        }
+    }
+    result.push(cur.trim());
+    return result;
+}
+
 function buildSeasonMap(games) {
     const map = {};
     games.forEach(g => {
@@ -30,6 +61,7 @@ class PackersTracker {
         this.csvBySeason = {};
         this.csvMaxSeason = 2020;
         this.seasonRecords = {};
+        this.photosBySeason = {};
         this.init();
     }
 
@@ -47,9 +79,10 @@ class PackersTracker {
                 }
             });
 
-            const [gamesRes, recordsRes] = await Promise.all([
+            const [gamesRes, recordsRes, photosRes] = await Promise.all([
                 fetch('./data/packers_games.csv'),
                 fetch('./data/packers_season_records.csv'),
+                fetch('./data/photos.csv'),
             ]);
             if (gamesRes.ok) {
                 const raw = await gamesRes.text();
@@ -67,6 +100,15 @@ class PackersTracker {
                     this.seasonRecords[parseInt(r.season)] = r;
                 });
             }
+            if (photosRes.ok) {
+                const raw = await photosRes.text();
+                parseCsvQuoted(raw).forEach(p => {
+                    const yr = parseInt(p.season);
+                    if (!this.photosBySeason[yr]) this.photosBySeason[yr] = [];
+                    this.photosBySeason[yr].push(p);
+                });
+            }
+            this.initGallery();
             const params = new URLSearchParams(window.location.search);
             const seasonParam = params.get('season');
             const pathMatch = window.location.pathname.match(/\/(\d{4})\/?$/);
@@ -137,6 +179,18 @@ class PackersTracker {
         next10Btn.disabled = this.currentSeason >= this.latestSeason;
         firstBtn.disabled = this.currentSeason <= this.earliestSeason;
         lastBtn.disabled = this.currentSeason >= this.latestSeason;
+
+        const existingBtn = document.getElementById('gallery-open-btn');
+        if (existingBtn) existingBtn.remove();
+        if (this.photosBySeason[this.currentSeason]?.length) {
+            const btn = document.createElement('button');
+            btn.id = 'gallery-open-btn';
+            btn.className = 'gallery-btn';
+            btn.innerHTML = '<i class="mdi mdi-image-multiple"></i> Photos';
+            btn.addEventListener('click', () => this.openGallery(this.currentSeason));
+            const selector = document.getElementById('season-selector');
+            selector.insertAdjacentElement('afterend', btn);
+        }
     }
 
     async loadSeason(year, pushState = true) {
@@ -1038,6 +1092,69 @@ class PackersTracker {
         } else {
             el.innerHTML = suffix;
         }
+    }
+
+    initGallery() {
+        const modal = document.getElementById('photo-gallery-modal');
+        const backdrop = modal.querySelector('.gallery-backdrop');
+        const closeBtn = document.getElementById('gallery-close');
+
+        const close = () => this.closeGallery();
+        backdrop.addEventListener('click', close);
+        closeBtn.addEventListener('click', close);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !modal.hidden) close();
+        });
+    }
+
+    openGallery(season) {
+        const modal = document.getElementById('photo-gallery-modal');
+        const grid = document.getElementById('gallery-grid');
+        const title = document.getElementById('gallery-title');
+        const photos = this.photosBySeason[season] || [];
+
+        title.textContent = `${season} Season Photos`;
+        grid.innerHTML = '';
+
+        photos.forEach(p => {
+            const item = document.createElement('div');
+            item.className = 'gallery-item';
+
+            const img = document.createElement('img');
+            img.src = p.url;
+            img.alt = p.caption;
+            img.loading = 'lazy';
+
+            const info = document.createElement('div');
+            info.className = 'gallery-item-info';
+
+            const caption = document.createElement('p');
+            caption.className = 'gallery-caption';
+            caption.textContent = p.caption;
+
+            const license = document.createElement('p');
+            license.className = 'gallery-license';
+            if (p.license_url) {
+                license.innerHTML = `License: <a href="${p.license_url}" target="_blank" rel="noopener noreferrer">${p.license}</a>`;
+            } else {
+                license.textContent = `License: ${p.license}`;
+            }
+
+            info.appendChild(caption);
+            info.appendChild(license);
+            item.appendChild(img);
+            item.appendChild(info);
+            grid.appendChild(item);
+        });
+
+        modal.hidden = false;
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeGallery() {
+        const modal = document.getElementById('photo-gallery-modal');
+        modal.hidden = true;
+        document.body.style.overflow = '';
     }
 
     showError(message) {
