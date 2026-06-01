@@ -35,6 +35,12 @@ class PackersTracker {
 
     async init() {
         try {
+            window.addEventListener('resize', () => {
+                if (this._lastResultArgs) {
+                    this.displayResult(...this._lastResultArgs);
+                }
+            });
+
             const [gamesRes, recordsRes] = await Promise.all([
                 fetch('./data/packers_games.csv'),
                 fetch('./data/packers_season_records.csv'),
@@ -547,8 +553,9 @@ class PackersTracker {
         return lines.join('<br>');
     }
 
-    emojisPerRow(answerEl) {
-        const width = answerEl.offsetWidth || 400;
+    emojisPerRow() {
+        const container = document.querySelector('.container');
+        const width = (container ? container.clientWidth : 400) - 64; // subtract answer padding (2 * 1rem * 2 sides + buffer)
         return Math.max(1, Math.floor(width / 65));
     }
 
@@ -556,8 +563,10 @@ class PackersTracker {
         const answerEl = document.getElementById('answer');
         const recordEl = document.getElementById('record');
 
+        this._lastResultArgs = [isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord];
+
         if (isUndefeated) {
-            const perRow = this.emojisPerRow(answerEl);
+            const perRow = this.emojisPerRow();
             const cheeseRows = wins > 0 ? this.emojiRows('🧀', wins, perRow) + '<br>' : '';
             answerEl.innerHTML = `${cheeseRows}YES!!!`;
             answerEl.className = 'answer yes';
@@ -567,7 +576,7 @@ class PackersTracker {
             answerEl.className = 'answer champions';
             document.body.classList.remove('undefeated');
         } else {
-            const perRow = this.emojisPerRow(answerEl);
+            const perRow = this.emojisPerRow();
             const cheeseRows = wins > 0 ? this.emojiRows('🧀', wins, perRow) + '<br>' : '';
             const frownRows = losses > 0 ? '<br>' + this.emojiRows('😢', losses, perRow) : '';
             answerEl.innerHTML = `${cheeseRows}NO${frownRows}`;
