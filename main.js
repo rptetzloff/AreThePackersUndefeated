@@ -1112,19 +1112,12 @@ class PackersTracker {
         });
 
         const lightbox = document.getElementById('lightbox');
-        document.getElementById('lightbox-close').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.closeLightbox();
+        document.getElementById('lightbox-close').addEventListener('click', () => this.closeLightbox());
+        document.getElementById('lightbox-prev').addEventListener('click', () => this.stepLightbox(-1));
+        document.getElementById('lightbox-next').addEventListener('click', () => this.stepLightbox(1));
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox || e.target === document.getElementById('lightbox-img')) this.closeLightbox();
         });
-        document.getElementById('lightbox-prev').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.stepLightbox(-1);
-        });
-        document.getElementById('lightbox-next').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.stepLightbox(1);
-        });
-        lightbox.addEventListener('click', () => this.closeLightbox());
     }
 
     openLightbox(photo, photos) {
@@ -1148,8 +1141,8 @@ class PackersTracker {
         } else {
             licenseEl.textContent = `License: ${photo.license}`;
         }
-        document.getElementById('lightbox-prev').disabled = idx === 0;
-        document.getElementById('lightbox-next').disabled = idx === photos.length - 1;
+        document.getElementById('lightbox-prev').classList.toggle('hidden', idx === 0);
+        document.getElementById('lightbox-next').classList.toggle('hidden', idx === photos.length - 1);
     }
 
     stepLightbox(dir) {

@@ -892,9 +892,9 @@ h1 {
     color: white;
 }
 
-.lightbox-nav:disabled {
-    opacity: 0.25;
-    cursor: default;
+.lightbox-nav.hidden {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .lightbox-nav-prev { left: 1rem; }
