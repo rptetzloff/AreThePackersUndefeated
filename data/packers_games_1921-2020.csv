@@ -1443,3 +1443,94 @@ date,season,neutral,regular_season,playoff,superbowl,team1,team2,team1_name,team
 1/3/2021,2020,0,1,0,,CHI,GB,Chicago Bears,Green Bay Packers,Chicago Bears,WIN,35,16,AWAY,13,3,0
 1/16/2021,2020,0,0,1,,GB,LAR,Green Bay Packers,Los Angeles Rams,Los Angeles Rams,WIN,32,18,HOME,13,3,0
 1/24/2021,2020,0,0,1,,GB,TB,Green Bay Packers,Tampa Bay Buccaneers,Tampa Bay Buccaneers,LOSS,26,31,HOME,13,3,0
+
+2021-09-12,2021,0,1,0,,GB,NO,Green Bay Packers,New Orleans Saints,New Orleans Saints,LOSS,3,38,AWAY,0,0,0
+2021-09-21,2021,0,1,0,,GB,DET,Green Bay Packers,Detroit Lions,Detroit Lions,WIN,35,17,HOME,0,0,0
+2021-09-27,2021,0,1,0,,GB,SF,Green Bay Packers,San Francisco 49ers,San Francisco 49ers,WIN,30,28,AWAY,0,0,0
+2021-10-03,2021,0,1,0,,GB,PIT,Green Bay Packers,Pittsburgh Steelers,Pittsburgh Steelers,WIN,27,17,HOME,0,0,0
+2021-10-10,2021,0,1,0,,GB,CIN,Green Bay Packers,Cincinnati Bengals,Cincinnati Bengals,WIN,25,22,AWAY,0,0,0
+2021-10-17,2021,0,1,0,,GB,CHI,Green Bay Packers,Chicago Bears,Chicago Bears,WIN,24,14,AWAY,0,0,0
+2021-10-24,2021,0,1,0,,GB,WSH,Green Bay Packers,Washington,Washington,WIN,24,10,HOME,0,0,0
+2021-10-29,2021,0,1,0,,GB,ARI,Green Bay Packers,Arizona Cardinals,Arizona Cardinals,WIN,24,21,AWAY,0,0,0
+2021-11-07,2021,0,1,0,,GB,KC,Green Bay Packers,Kansas City Chiefs,Kansas City Chiefs,LOSS,7,13,AWAY,0,0,0
+2021-11-14,2021,0,1,0,,GB,SEA,Green Bay Packers,Seattle Seahawks,Seattle Seahawks,WIN,17,0,HOME,0,0,0
+2021-11-21,2021,0,1,0,,GB,MIN,Green Bay Packers,Minnesota Vikings,Minnesota Vikings,LOSS,31,34,AWAY,0,0,0
+2021-11-28,2021,0,1,0,,GB,LAR,Green Bay Packers,Los Angeles Rams,Los Angeles Rams,WIN,36,28,HOME,0,0,0
+2021-12-13,2021,0,1,0,,GB,CHI,Green Bay Packers,Chicago Bears,Chicago Bears,WIN,45,30,HOME,0,0,0
+2021-12-19,2021,0,1,0,,GB,BAL,Green Bay Packers,Baltimore Ravens,Baltimore Ravens,WIN,31,30,AWAY,0,0,0
+2021-12-25,2021,0,1,0,,GB,CLE,Green Bay Packers,Cleveland Browns,Cleveland Browns,WIN,24,22,HOME,0,0,0
+2022-01-03,2021,0,1,0,,GB,MIN,Green Bay Packers,Minnesota Vikings,Minnesota Vikings,WIN,37,10,HOME,0,0,0
+2022-01-09,2021,0,1,0,,GB,DET,Green Bay Packers,Detroit Lions,Detroit Lions,LOSS,30,37,AWAY,0,0,0
+2022-01-23,2021,0,0,1,,GB,SF,Green Bay Packers,San Francisco 49ers,San Francisco 49ers,LOSS,10,13,HOME,0,0,0
+2022-09-11,2022,0,1,0,,GB,MIN,Green Bay Packers,Minnesota Vikings,Minnesota Vikings,LOSS,7,23,AWAY,0,0,0
+2022-09-19,2022,0,1,0,,GB,CHI,Green Bay Packers,Chicago Bears,Chicago Bears,WIN,27,10,HOME,0,0,0
+2022-09-25,2022,0,1,0,,GB,TB,Green Bay Packers,Tampa Bay Buccaneers,Tampa Bay Buccaneers,WIN,14,12,AWAY,0,0,0
+2022-10-02,2022,0,1,0,,GB,NE,Green Bay Packers,New England Patriots,New England Patriots,WIN,27,24,HOME,0,0,0
+2022-10-09,2022,1,1,0,,GB,NYG,Green Bay Packers,New York Giants,New York Giants,LOSS,22,27,HOME,0,0,0
+2022-10-16,2022,0,1,0,,GB,NYJ,Green Bay Packers,New York Jets,New York Jets,LOSS,10,27,HOME,0,0,0
+2022-10-23,2022,0,1,0,,GB,WSH,Green Bay Packers,Washington Commanders,Washington Commanders,LOSS,21,23,AWAY,0,0,0
+2022-10-31,2022,0,1,0,,GB,BUF,Green Bay Packers,Buffalo Bills,Buffalo Bills,LOSS,17,27,AWAY,0,0,0
+2022-11-06,2022,0,1,0,,GB,DET,Green Bay Packers,Detroit Lions,Detroit Lions,LOSS,9,15,AWAY,0,0,0
+2022-11-13,2022,0,1,0,,GB,DAL,Green Bay Packers,Dallas Cowboys,Dallas Cowboys,WIN,31,28,HOME,0,0,0
+2022-11-18,2022,0,1,0,,GB,TEN,Green Bay Packers,Tennessee Titans,Tennessee Titans,LOSS,17,27,HOME,0,0,0
+2022-11-28,2022,0,1,0,,GB,PHI,Green Bay Packers,Philadelphia Eagles,Philadelphia Eagles,LOSS,33,40,AWAY,0,0,0
+2022-12-04,2022,0,1,0,,GB,CHI,Green Bay Packers,Chicago Bears,Chicago Bears,WIN,28,19,AWAY,0,0,0
+2022-12-20,2022,0,1,0,,GB,LAR,Green Bay Packers,Los Angeles Rams,Los Angeles Rams,WIN,24,12,HOME,0,0,0
+2022-12-25,2022,0,1,0,,GB,MIA,Green Bay Packers,Miami Dolphins,Miami Dolphins,WIN,26,20,AWAY,0,0,0
+2023-01-01,2022,0,1,0,,GB,MIN,Green Bay Packers,Minnesota Vikings,Minnesota Vikings,WIN,41,17,HOME,0,0,0
+2023-01-09,2022,0,1,0,,GB,DET,Green Bay Packers,Detroit Lions,Detroit Lions,LOSS,16,20,HOME,0,0,0
+2023-09-10,2023,0,1,0,,GB,CHI,Green Bay Packers,Chicago Bears,Chicago Bears,WIN,38,20,AWAY,0,0,0
+2023-09-17,2023,0,1,0,,GB,ATL,Green Bay Packers,Atlanta Falcons,Atlanta Falcons,LOSS,24,25,AWAY,0,0,0
+2023-09-24,2023,0,1,0,,GB,NO,Green Bay Packers,New Orleans Saints,New Orleans Saints,WIN,18,17,HOME,0,0,0
+2023-09-29,2023,0,1,0,,GB,DET,Green Bay Packers,Detroit Lions,Detroit Lions,LOSS,20,34,HOME,0,0,0
+2023-10-10,2023,0,1,0,,GB,LV,Green Bay Packers,Las Vegas Raiders,Las Vegas Raiders,LOSS,13,17,AWAY,0,0,0
+2023-10-22,2023,0,1,0,,GB,DEN,Green Bay Packers,Denver Broncos,Denver Broncos,LOSS,17,19,AWAY,0,0,0
+2023-10-29,2023,0,1,0,,GB,MIN,Green Bay Packers,Minnesota Vikings,Minnesota Vikings,LOSS,10,24,HOME,0,0,0
+2023-11-05,2023,0,1,0,,GB,LAR,Green Bay Packers,Los Angeles Rams,Los Angeles Rams,WIN,20,3,HOME,0,0,0
+2023-11-12,2023,0,1,0,,GB,PIT,Green Bay Packers,Pittsburgh Steelers,Pittsburgh Steelers,LOSS,19,23,AWAY,0,0,0
+2023-11-19,2023,0,1,0,,GB,LAC,Green Bay Packers,Los Angeles Chargers,Los Angeles Chargers,WIN,23,20,HOME,0,0,0
+2023-11-23,2023,0,1,0,,GB,DET,Green Bay Packers,Detroit Lions,Detroit Lions,WIN,29,22,AWAY,0,0,0
+2023-12-04,2023,0,1,0,,GB,KC,Green Bay Packers,Kansas City Chiefs,Kansas City Chiefs,WIN,27,19,HOME,0,0,0
+2023-12-12,2023,0,1,0,,GB,NYG,Green Bay Packers,New York Giants,New York Giants,LOSS,22,24,AWAY,0,0,0
+2023-12-17,2023,0,1,0,,GB,TB,Green Bay Packers,Tampa Bay Buccaneers,Tampa Bay Buccaneers,LOSS,20,34,HOME,0,0,0
+2023-12-24,2023,0,1,0,,GB,CAR,Green Bay Packers,Carolina Panthers,Carolina Panthers,WIN,33,30,AWAY,0,0,0
+2024-01-01,2023,0,1,0,,GB,MIN,Green Bay Packers,Minnesota Vikings,Minnesota Vikings,WIN,33,10,AWAY,0,0,0
+2024-01-07,2023,0,1,0,,GB,CHI,Green Bay Packers,Chicago Bears,Chicago Bears,WIN,17,9,HOME,0,0,0
+2024-01-14,2023,0,0,1,,GB,DAL,Green Bay Packers,Dallas Cowboys,Dallas Cowboys,WIN,48,32,AWAY,0,0,0
+2024-01-21,2023,0,0,1,,GB,SF,Green Bay Packers,San Francisco 49ers,San Francisco 49ers,LOSS,21,24,AWAY,0,0,0
+2024-09-07,2024,1,1,0,,GB,PHI,Green Bay Packers,Philadelphia Eagles,Philadelphia Eagles,LOSS,29,34,NEUTRAL,0,0,0
+2024-09-15,2024,0,1,0,,GB,IND,Green Bay Packers,Indianapolis Colts,Indianapolis Colts,WIN,16,10,HOME,0,0,0
+2024-09-22,2024,0,1,0,,GB,TEN,Green Bay Packers,Tennessee Titans,Tennessee Titans,WIN,30,14,AWAY,0,0,0
+2024-09-29,2024,0,1,0,,GB,MIN,Green Bay Packers,Minnesota Vikings,Minnesota Vikings,LOSS,29,31,HOME,0,0,0
+2024-10-06,2024,0,1,0,,GB,LAR,Green Bay Packers,Los Angeles Rams,Los Angeles Rams,WIN,24,19,AWAY,0,0,0
+2024-10-13,2024,0,1,0,,GB,ARI,Green Bay Packers,Arizona Cardinals,Arizona Cardinals,WIN,34,13,HOME,0,0,0
+2024-10-20,2024,0,1,0,,GB,HOU,Green Bay Packers,Houston Texans,Houston Texans,WIN,24,22,HOME,0,0,0
+2024-10-27,2024,0,1,0,,GB,JAX,Green Bay Packers,Jacksonville Jaguars,Jacksonville Jaguars,WIN,30,27,AWAY,0,0,0
+2024-11-03,2024,0,1,0,,GB,DET,Green Bay Packers,Detroit Lions,Detroit Lions,LOSS,14,24,HOME,0,0,0
+2024-11-17,2024,0,1,0,,GB,CHI,Green Bay Packers,Chicago Bears,Chicago Bears,WIN,20,19,AWAY,0,0,0
+2024-11-24,2024,0,1,0,,GB,SF,Green Bay Packers,San Francisco 49ers,San Francisco 49ers,WIN,38,10,HOME,0,0,0
+2024-11-29,2024,0,1,0,,GB,MIA,Green Bay Packers,Miami Dolphins,Miami Dolphins,WIN,30,17,HOME,0,0,0
+2024-12-06,2024,0,1,0,,GB,DET,Green Bay Packers,Detroit Lions,Detroit Lions,LOSS,31,34,AWAY,0,0,0
+2024-12-16,2024,0,1,0,,GB,SEA,Green Bay Packers,Seattle Seahawks,Seattle Seahawks,WIN,30,13,AWAY,0,0,0
+2024-12-24,2024,0,1,0,,GB,NO,Green Bay Packers,New Orleans Saints,New Orleans Saints,WIN,34,0,HOME,0,0,0
+2024-12-29,2024,0,1,0,,GB,MIN,Green Bay Packers,Minnesota Vikings,Minnesota Vikings,LOSS,25,27,AWAY,0,0,0
+2025-01-05,2024,0,1,0,,GB,CHI,Green Bay Packers,Chicago Bears,Chicago Bears,LOSS,22,24,HOME,0,0,0
+2025-01-12,2024,0,0,1,,GB,PHI,Green Bay Packers,Philadelphia Eagles,Philadelphia Eagles,LOSS,10,22,AWAY,0,0,0
+2025-09-07,2025,0,1,0,,GB,DET,Green Bay Packers,Detroit Lions,Detroit Lions,WIN,27,13,HOME,0,0,0
+2025-09-12,2025,0,1,0,,GB,WSH,Green Bay Packers,Washington Commanders,Washington Commanders,WIN,27,18,HOME,0,0,0
+2025-09-21,2025,0,1,0,,GB,CLE,Green Bay Packers,Cleveland Browns,Cleveland Browns,LOSS,10,13,AWAY,0,0,0
+2025-09-29,2025,0,1,0,,GB,DAL,Green Bay Packers,Dallas Cowboys,Dallas Cowboys,TIE,40,40,AWAY,0,0,0
+2025-10-12,2025,0,1,0,,GB,CIN,Green Bay Packers,Cincinnati Bengals,Cincinnati Bengals,WIN,27,18,HOME,0,0,0
+2025-10-19,2025,0,1,0,,GB,ARI,Green Bay Packers,Arizona Cardinals,Arizona Cardinals,WIN,27,23,AWAY,0,0,0
+2025-10-27,2025,0,1,0,,GB,PIT,Green Bay Packers,Pittsburgh Steelers,Pittsburgh Steelers,WIN,35,25,AWAY,0,0,0
+2025-11-02,2025,0,1,0,,GB,CAR,Green Bay Packers,Carolina Panthers,Carolina Panthers,LOSS,13,16,HOME,0,0,0
+2025-11-11,2025,0,1,0,,GB,PHI,Green Bay Packers,Philadelphia Eagles,Philadelphia Eagles,LOSS,7,10,HOME,0,0,0
+2025-11-16,2025,0,1,0,,GB,NYG,Green Bay Packers,New York Giants,New York Giants,WIN,27,20,AWAY,0,0,0
+2025-11-23,2025,0,1,0,,GB,MIN,Green Bay Packers,Minnesota Vikings,Minnesota Vikings,WIN,23,6,HOME,0,0,0
+2025-11-27,2025,0,1,0,,GB,DET,Green Bay Packers,Detroit Lions,Detroit Lions,WIN,31,24,AWAY,0,0,0
+2025-12-07,2025,0,1,0,,GB,CHI,Green Bay Packers,Chicago Bears,Chicago Bears,WIN,28,21,HOME,0,0,0
+2025-12-14,2025,0,1,0,,GB,DEN,Green Bay Packers,Denver Broncos,Denver Broncos,LOSS,26,34,AWAY,0,0,0
+2025-12-21,2025,0,1,0,,GB,CHI,Green Bay Packers,Chicago Bears,Chicago Bears,LOSS,16,22,AWAY,0,0,0
+2025-12-28,2025,0,1,0,,GB,BAL,Green Bay Packers,Baltimore Ravens,Baltimore Ravens,LOSS,24,41,HOME,0,0,0
+2026-01-04,2025,0,1,0,,GB,MIN,Green Bay Packers,Minnesota Vikings,Minnesota Vikings,LOSS,3,16,AWAY,0,0,0
+2026-01-11,2025,0,0,1,,GB,CHI,Green Bay Packers,Chicago Bears,Chicago Bears,LOSS,27,31,AWAY,0,0,0
