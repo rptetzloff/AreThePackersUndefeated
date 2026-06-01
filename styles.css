@@ -521,7 +521,7 @@ h1 {
     }
     
     .schedule-section {
-        width: calc(100vw - 2rem);
+        width: 100%;
         padding: 1rem;
         margin: 1rem 0;
         box-sizing: border-box;
