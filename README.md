@@ -19,6 +19,12 @@ example.com/?season=1924
 
 Both formats are supported. The path form (`/1924`) requires your host to be configured with a rewrite rule that serves `index.html` for all routes.
 
+## Data Files
+
+`data/packers_games_1921-2020.csv` — game-by-game results for every Packers game from 1921 through 2020, including opponent, score, location, and playoff/Super Bowl flags.
+
+`data/packers_season_records.csv` — one row per season (1921–2020) with regular season and postseason win/loss/tie totals.
+
 ## Data Sources
 
 **Current and recent seasons** — live and historical schedule data is fetched from the [ESPN API](https://www.espn.com).
