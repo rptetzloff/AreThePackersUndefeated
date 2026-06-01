@@ -36,7 +36,7 @@ class PackersTracker {
     async init() {
         try {
             const [gamesRes, recordsRes] = await Promise.all([
-                fetch('./data/packers_games_1921-2020.csv'),
+                fetch('./data/packers_games.csv'),
                 fetch('./data/packers_season_records.csv'),
             ]);
             if (gamesRes.ok) {
@@ -158,7 +158,7 @@ class PackersTracker {
     }
 
     async fetchPackersData(season) {
-        // For seasons covered by the CSV (1921-2025), use local data
+        // For seasons covered by the CSV, use local data
         if (season && this.usesCsvData(season)) {
             this.processCsvSeasonData(season);
             return;
