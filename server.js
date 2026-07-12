@@ -195,10 +195,11 @@ async function serveStatic(req, res, pathname) {
     const versioned = /[?&]v=/.test(req.url);
     const ext = extname(file).toLowerCase();
     // Unversioned JS (module imports like records-core.js can't carry ?v=)
-    // must revalidate on every load, or a deploy can pair a fresh versioned
-    // entry module with an hour-stale dependency.
+    // and the data CSVs (whose column shape must match the deployed code)
+    // must revalidate on every load, or a deploy can pair fresh code with
+    // hour-stale data/modules.
     const cache = versioned ? 'public, max-age=31536000, immutable'
-      : ext === '.js' ? 'no-cache'
+      : ext === '.js' || ext === '.csv' ? 'no-cache'
       : 'public, max-age=3600';
     res.writeHead(200, {
       'Content-Type': MIME[ext] || 'application/octet-stream',

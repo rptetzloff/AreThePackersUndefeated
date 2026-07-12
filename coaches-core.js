@@ -56,7 +56,17 @@ export function computeCoaches(rows, tenures, championSeasons) {
 		if (name) titleCount.set(name, (titleCount.get(name) || 0) + 1);
 	}
 
-	const coaches = spans
+	// Coach numbering: regular head coaches count 1..N; interim stints get a
+	// fractional number under the preceding regular coach (McCarthy is #14,
+	// Philbin #14.1) so the official count stays intact and sorting works.
+	let regularNum = 0, interimNum = 0;
+	const numbered = spans.map((s) => {
+		if (s.interim) { interimNum++; return { ...s, num: regularNum + interimNum / 10 }; }
+		regularNum++; interimNum = 0;
+		return { ...s, num: regularNum };
+	});
+
+	const coaches = numbered
 		.filter((s) => byCoach.get(s.name).length > 0)
 		.map((s) => {
 			const list = byCoach.get(s.name);
@@ -76,6 +86,8 @@ export function computeCoaches(rows, tenures, championSeasons) {
 			return {
 				name: s.name, slug: slugifyCoach(s.name),
 				interim: s.interim,
+				num: s.num,
+				numLabel: s.interim ? s.num.toFixed(1) : String(s.num),
 				image: s.image, imagePage: s.imagePage,
 				firstSeason, lastSeason,
 				tenure: firstSeason === lastSeason ? String(firstSeason) : `${firstSeason}–${lastSeason}`,
@@ -84,6 +96,7 @@ export function computeCoaches(rows, tenures, championSeasons) {
 				record: rec(reg.WIN, reg.LOSS, reg.TIE),
 				winPct: regGames ? (reg.WIN + reg.TIE / 2) / regGames : 0,
 				playoffGames,
+				playoffWins: playoff.WIN,
 				playoffRecord: playoffGames ? rec(playoff.WIN, playoff.LOSS, playoff.TIE) : null,
 				pf, pa,
 				titles: titleCount.get(s.name) || 0,
@@ -96,10 +109,11 @@ export function computeCoaches(rows, tenures, championSeasons) {
 // Meta copy for the /coaches page, shared by server OG meta and client share.
 export function coachesCopy(data) {
 	const { coaches } = data;
+	const regular = coaches.filter((c) => !c.interim).length;
 	const wins = [...coaches].sort((a, b) => b.wins - a.wins)[0];
 	const titles = coaches.reduce((s, c) => s + c.titles, 0);
 	return {
 		title: `Packers Head Coaches, ${coaches[0].firstSeason}–present`,
-		desc: `Every Green Bay Packers head coach and their record — ${coaches.length} of them, ${titles} championships. Most wins: ${wins.name} (${wins.record}).`,
+		desc: `Every Green Bay Packers head coach and their record — ${regular} of them (plus interim stints), ${titles} championships. Most wins: ${wins.name} (${wins.record}).`,
 	};
 }

@@ -31,6 +31,14 @@ export function formatDate(iso) {
 	return `${MONTHS[m - 1]} ${d}, ${y}`;
 }
 
+// 'YYYY-MM-DD' -> local-time Date. new Date('YYYY-MM-DD') parses as UTC
+// midnight, which any timezone west of UTC displays as the PREVIOUS day
+// (Sunday games labelled Saturday).
+export function localDate(iso) {
+	const [y, m, d] = iso.split('-').map((n) => parseInt(n, 10));
+	return new Date(y, m - 1, d);
+}
+
 export const rec = (w, l, t) => (t > 0 ? `${w}–${l}–${t}` : `${w}–${l}`);
 
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

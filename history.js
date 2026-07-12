@@ -129,8 +129,8 @@ async function init() {
 		apply();
 
 		const share = document.getElementById('history-share');
-		share.innerHTML = shareButtonsHtml('share-btn record-share-btn');
-		wireShareRow(share, historyCopy(histories.regular).desc, `${window.location.origin}/history`);
+		share.innerHTML = shareButtonsHtml('share-btn', { labels: true });
+		wireShareRow(share, historyCopy(histories.regular).desc, `${window.location.origin}/history`, { labels: true });
 	} catch (e) {
 		chartEl.innerHTML = '<p class="record-empty">Could not load the game data. Try again later.</p>';
 		console.error(e);

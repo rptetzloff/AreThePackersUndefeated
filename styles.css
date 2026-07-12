@@ -1638,8 +1638,23 @@ details:not([open]) > .collapsible-summary::before {
     border: 1.5px solid white;
 }
 
-#history-share {
-    justify-content: center;
+/* th sort affordances for sortable tables (see sortable.js) */
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+th.sortable:hover {
+    color: #ffd050;
+}
+
+th.sorted-asc::after {
+    content: ' \25B4';
+}
+
+th.sorted-desc::after {
+    content: ' \25BE';
 }
 
 

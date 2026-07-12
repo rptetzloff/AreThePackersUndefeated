@@ -1,4 +1,4 @@
-        import { parseGamesCsv, computeSeasonHistory } from './records-core.js';
+        import { parseGamesCsv, computeSeasonHistory, localDate } from './records-core.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
         import { buildChartSvg } from './history-chart.js';
         import { intentUrls, copyText, flashCopied } from './share-core.js';
@@ -384,7 +384,7 @@ createCsvGameItem(g, showH2h = false) {
         		const location = g.location; // HOME / AWAY / NEUTRAL
         		const packersScore = parseInt(g.packers_score) || 0;
         		const opponentScore = parseInt(g.opponent_score) || 0;
-        		const date = new Date(g.date);
+        		const date = localDate(g.date);
         		const isSuperBowl = g.superbowl && g.superbowl.trim() !== '';
 
         		const gameItem = document.createElement('div');
@@ -1126,7 +1126,7 @@ buildOnThisDay() {
   if (!el) return;
 
   const dateParam = new URLSearchParams(window.location.search).get('otd');
-  const today = dateParam ? new Date(`2000-${dateParam}`) : new Date();
+  const today = dateParam ? localDate(`2000-${dateParam}`) : new Date();
   const todayMonth = isNaN(today) ? new Date().getMonth() : today.getMonth();
   const todayDay = isNaN(today) ? new Date().getDate() : today.getDate();
 
@@ -1134,7 +1134,7 @@ buildOnThisDay() {
   for (const [yr, games] of Object.entries(this.csvBySeason)) {
      for (const g of games) {
         if (!g.date) continue;
-        const d = new Date(g.date);
+        const d = localDate(g.date);
         if (isNaN(d)) continue;
         const diff = Math.abs((d.getMonth() * 31 + d.getDate()) - (todayMonth * 31 + todayDay));
         if (diff <= 3) candidates.push({ game: g, season: parseInt(yr), date: d });
