@@ -11,23 +11,30 @@ export function intentUrls(message, url) {
 	};
 }
 
-// Icon-only share buttons for a compact per-card share row: native share when
-// supported, otherwise the per-platform intent links, plus copy. Pair with
-// wireShareRow() after inserting into the DOM.
-export function shareButtonsHtml(btnClass) {
+// Share buttons: native share when supported, otherwise the per-platform
+// intent links, plus copy. Two formats — icon-only (compact, inside cards)
+// and labelled (page-level rows, matching the main page's share section).
+// Pair with wireShareRow() after inserting into the DOM.
+const SHARE_DEFS = [
+	['x', 'mdi-twitter', 'Post on X'],
+	['bsky', 'mdi-butterfly', 'Post on Bluesky'],
+	['fb', 'mdi-facebook', 'Share on Facebook'],
+	['reddit', 'mdi-reddit', 'Post on Reddit'],
+];
+
+export function shareButtonsHtml(btnClass, { labels = false } = {}) {
 	const native = !!navigator.share;
-	const alts = native ? '' : `
-		<a class="${btnClass}" data-share="x" href="#" target="_blank" rel="noopener noreferrer" aria-label="Post on X"><i class="mdi mdi-twitter"></i></a>
-		<a class="${btnClass}" data-share="bsky" href="#" target="_blank" rel="noopener noreferrer" aria-label="Post on Bluesky"><i class="mdi mdi-butterfly"></i></a>
-		<a class="${btnClass}" data-share="fb" href="#" target="_blank" rel="noopener noreferrer" aria-label="Share on Facebook"><i class="mdi mdi-facebook"></i></a>
-		<a class="${btnClass}" data-share="reddit" href="#" target="_blank" rel="noopener noreferrer" aria-label="Post on Reddit"><i class="mdi mdi-reddit"></i></a>`;
-	return `${native ? `<button class="${btnClass}" data-share="native" aria-label="Share"><i class="mdi mdi-share-variant"></i></button>` : ''}
+	const text = (label) => (labels ? label : '');
+	const alts = native ? '' : SHARE_DEFS.map(([key, icon, label]) =>
+		`<a class="${btnClass}" data-share="${key}" href="#" target="_blank" rel="noopener noreferrer" aria-label="${label}"><i class="mdi ${icon} share-icon"></i>${text(label)}</a>`
+	).join('\n\t\t');
+	return `${native ? `<button class="${btnClass}" data-share="native" aria-label="Share"><i class="mdi mdi-share-variant share-icon"></i>${text('Share')}</button>` : ''}
 		${alts}
-		<button class="${btnClass}" data-share="copy" aria-label="Copy link"><i class="mdi mdi-clipboard-outline"></i></button>`;
+		<button class="${btnClass}" data-share="copy" aria-label="Copy link"><i class="mdi mdi-clipboard-outline share-icon"></i>${text('Copy')}</button>`;
 }
 
 // Wire the [data-share] buttons inside `row` to share `message` + `url`.
-export function wireShareRow(row, message, url) {
+export function wireShareRow(row, message, url, { labels = false } = {}) {
 	const links = intentUrls(message, url);
 	row.querySelectorAll('[data-share]').forEach((btn) => {
 		switch (btn.dataset.share) {
@@ -42,7 +49,9 @@ export function wireShareRow(row, message, url) {
 				break;
 			case 'copy':
 				btn.addEventListener('click', () => {
-					flashCopied(btn, '<i class="mdi mdi-check"></i>');
+					flashCopied(btn, labels
+						? '<i class="mdi mdi-check share-icon"></i>Copied!'
+						: '<i class="mdi mdi-check"></i>');
 					copyText(`${message}\n\n${url}`);
 				});
 				break;

@@ -4,6 +4,7 @@
 import { parseGamesCsv, formatDate, esc } from './records-core.js';
 import { computeHeadToHead, h2hCopy, streakSentence } from './h2h-core.js';
 import { shareButtonsHtml, wireShareRow } from './share-core.js';
+import { sortItems, wireSortHeaders } from './sortable.js';
 
 // Standard sports-page winning percentage: ties count half. ".622" / "1.000".
 const pct = (p) => (p >= 1 ? '1.000' : p.toFixed(3).replace(/^0/, ''));
@@ -38,7 +39,12 @@ function tableHtml(opponents) {
 			<td class="h2h-num">${pct(o.winPct)}</td>
 		</tr>`).join('');
 	return `<table class="h2h-table">
-		<thead><tr><th>Opponent</th><th class="h2h-num">Record</th><th class="h2h-num">Games</th><th class="h2h-num">Win %</th></tr></thead>
+		<thead><tr>
+			<th data-sort="name" data-dir="asc">Opponent</th>
+			<th class="h2h-num" data-sort="wins">Record</th>
+			<th class="h2h-num" data-sort="games">Games</th>
+			<th class="h2h-num" data-sort="winPct">Win %</th>
+		</tr></thead>
 		<tbody>${rows}</tbody>
 	</table>`;
 }
@@ -86,6 +92,7 @@ async function init() {
 			}));
 		};
 
+		const sortState = { key: 'games', dir: 'desc' };
 		const renderTable = () => {
 			const venue = controls.venue.value;
 			const type = controls.type.value;
@@ -94,12 +101,13 @@ async function init() {
 				&& (type === 'all' || (type === 'regular' ? g.regular_season === '1' : g.regular_season !== '1')));
 			const data = venue === 'all' && type === 'all' ? allTime : computeHeadToHead(subset);
 			const q = controls.q.value.trim().toLowerCase();
-			const opponents = data.opponents.filter((o) =>
+			const opponents = sortItems(data.opponents.filter((o) =>
 				(!controls.current.checked || o.current)
-				&& (q === '' || o.name.toLowerCase().includes(q)));
+				&& (q === '' || o.name.toLowerCase().includes(q))), sortState);
 			wrap.innerHTML = opponents.length
 				? tableHtml(opponents)
 				: '<p class="record-empty">No opponents match those filters.</p>';
+			wireSortHeaders(wrap, sortState, renderTable);
 			const filtered = venue !== 'all' || type !== 'all' || controls.current.checked || q !== '';
 			countEl.textContent = filtered ? `${opponents.length} of ${allTime.opponents.length} opponents` : '';
 		};

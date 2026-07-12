@@ -1,5 +1,6 @@
-        import { parseGamesCsv } from './records-core.js';
+        import { parseGamesCsv, computeSeasonHistory, localDate } from './records-core.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
+        import { buildChartSvg } from './history-chart.js';
         import { intentUrls, copyText, flashCopied } from './share-core.js';
 
         function buildSeasonMap(games) {
@@ -62,6 +63,8 @@
         				this.csvBySeason = buildSeasonMap(games);
         				// name -> all-time head-to-head entry, for schedule annotations
         				this.h2hByName = new Map(computeHeadToHead(games).opponents.map(o => [o.name, o]));
+        				this.seasonHistory = computeSeasonHistory(games);
+        				this.renderHistorySpark();
         				const seasons = Object.keys(this.csvBySeason).map(Number).sort((a, b) => a - b);
         				if (seasons.length) {
         					this.earliestSeason = seasons[0];
@@ -142,11 +145,26 @@
           const el = document.getElementById('site-title');
           if (!el) return;
           const past = this.currentSeason && this.latestSeason && this.currentSeason < this.latestSeason;
-          el.textContent = `${past ? 'Were' : 'Are'} the Packers Undefeated?`;
+          el.textContent = past
+              ? `Were the Packers Undefeated in ${this.currentSeason}?`
+              : 'Are the Packers Undefeated?';
+      }
+
+      // Compact franchise-history sparkline under the answer; the currently
+      // viewed season gets a white marker. Links through to /history.
+      renderHistorySpark() {
+          const el = document.getElementById('history-spark');
+          if (!el || !this.seasonHistory?.length) return;
+          el.innerHTML = buildChartSvg(this.seasonHistory, {
+              width: 600, height: 80,
+              axes: false,
+              highlight: this.currentSeason,
+          });
       }
 
       updateSeasonSelector() {
           this.updateSiteTitle();
+          this.renderHistorySpark();
           const label = document.getElementById('season-label');
           const prevBtn = document.getElementById('season-prev');
           const nextBtn = document.getElementById('season-next');
@@ -366,7 +384,7 @@ createCsvGameItem(g, showH2h = false) {
         		const location = g.location; // HOME / AWAY / NEUTRAL
         		const packersScore = parseInt(g.packers_score) || 0;
         		const opponentScore = parseInt(g.opponent_score) || 0;
-        		const date = new Date(g.date);
+        		const date = localDate(g.date);
         		const isSuperBowl = g.superbowl && g.superbowl.trim() !== '';
 
         		const gameItem = document.createElement('div');
@@ -1108,7 +1126,7 @@ buildOnThisDay() {
   if (!el) return;
 
   const dateParam = new URLSearchParams(window.location.search).get('otd');
-  const today = dateParam ? new Date(`2000-${dateParam}`) : new Date();
+  const today = dateParam ? localDate(`2000-${dateParam}`) : new Date();
   const todayMonth = isNaN(today) ? new Date().getMonth() : today.getMonth();
   const todayDay = isNaN(today) ? new Date().getDate() : today.getDate();
 
@@ -1116,7 +1134,7 @@ buildOnThisDay() {
   for (const [yr, games] of Object.entries(this.csvBySeason)) {
      for (const g of games) {
         if (!g.date) continue;
-        const d = new Date(g.date);
+        const d = localDate(g.date);
         if (isNaN(d)) continue;
         const diff = Math.abs((d.getMonth() * 31 + d.getDate()) - (todayMonth * 31 + todayDay));
         if (diff <= 3) candidates.push({ game: g, season: parseInt(yr), date: d });

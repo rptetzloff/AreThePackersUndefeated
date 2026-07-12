@@ -31,6 +31,14 @@ export function formatDate(iso) {
 	return `${MONTHS[m - 1]} ${d}, ${y}`;
 }
 
+// 'YYYY-MM-DD' -> local-time Date. new Date('YYYY-MM-DD') parses as UTC
+// midnight, which any timezone west of UTC displays as the PREVIOUS day
+// (Sunday games labelled Saturday).
+export function localDate(iso) {
+	const [y, m, d] = iso.split('-').map((n) => parseInt(n, 10));
+	return new Date(y, m - 1, d);
+}
+
 export const rec = (w, l, t) => (t > 0 ? `${w}–${l}–${t}` : `${w}–${l}`);
 
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -148,6 +156,72 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 
 export const streakSpan = (s) =>
 	s.startSeason === s.endSeason ? String(s.startSeason) : `${s.startSeason}–${s.endSeason}`;
+
+// The 1929-31 titles were awarded on standings — no championship game to win.
+// Every later title (NFL Championships and Super Bowls) is "won the season's
+// final playoff game".
+const STANDINGS_TITLES = new Set([1929, 1930, 1931]);
+
+// One entry per season, chronological: record, win% (ties count half), and
+// points for/against, plus championship/undefeated flags for chart markers.
+// `playoffs: true` folds postseason games into the record/points; the
+// champion and undefeated flags always use their own rules regardless.
+export function computeSeasonHistory(rows, { now = new Date(), playoffs = false } = {}) {
+	const games = rows
+		.filter((r) => ['WIN', 'LOSS', 'TIE'].includes(r['Packers Win']))
+		.slice()
+		.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+	const bySeason = new Map();
+	for (const g of games) {
+		const yr = parseInt(g.season, 10);
+		if (!bySeason.has(yr)) bySeason.set(yr, []);
+		bySeason.get(yr).push(g);
+	}
+	return [...bySeason.keys()].sort((a, b) => a - b).map((yr) => {
+		let w = 0, l = 0, t = 0, pf = 0, pa = 0, regLosses = 0, regWins = 0;
+		let lastPlayoff = null;
+		let superbowl = false;
+		for (const g of bySeason.get(yr)) {
+			const isReg = g.regular_season === '1';
+			if (!isReg) {
+				lastPlayoff = g;
+				if (g.superbowl && g.superbowl.trim() && g['Packers Win'] === 'WIN') superbowl = true;
+			}
+			if (isReg) {
+				if (g['Packers Win'] === 'WIN') regWins++;
+				else if (g['Packers Win'] === 'LOSS') regLosses++;
+			}
+			if (!isReg && !playoffs) continue;
+			if (g['Packers Win'] === 'WIN') w++;
+			else if (g['Packers Win'] === 'LOSS') l++;
+			else t++;
+			pf += parseInt(g.packers_score, 10) || 0;
+			pa += parseInt(g.opponent_score, 10) || 0;
+		}
+		const gamesPlayed = w + l + t;
+		return {
+			season: yr,
+			wins: w, losses: l, ties: t,
+			record: rec(w, l, t),
+			winPct: gamesPlayed ? (w + t / 2) / gamesPlayed : 0,
+			pf, pa,
+			champion: STANDINGS_TITLES.has(yr) || (lastPlayoff !== null && lastPlayoff['Packers Win'] === 'WIN'),
+			superbowl,
+			undefeated: regLosses === 0 && regWins > 0 && seasonSettled(yr, now),
+		};
+	});
+}
+
+// Meta copy for the /history page, shared by server OG meta and client share.
+export function historyCopy(history) {
+	const first = history[0].season, last = history[history.length - 1].season;
+	const titles = history.filter((s) => s.champion).length;
+	const winning = history.filter((s) => s.winPct > 0.5).length;
+	return {
+		title: `Packers Season-by-Season History, ${first}–${last}`,
+		desc: `Every Green Bay Packers season since ${first} in one chart: ${titles} championships and ${winning} winning seasons across ${history.length} years.`,
+	};
+}
 
 // Per-card copy shared by server OG meta and client share messages.
 // slug 'overview' covers the /records landing URL.
