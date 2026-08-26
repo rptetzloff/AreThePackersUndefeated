@@ -1,0 +1,34 @@
+name: Tests
+
+# The suite is the authoritative gate. It runs on every push and pull request,
+# including the automated ones from update-data.yml — which is the point: that
+# workflow commits new games weekly, and data/*.test.js is what notices when a
+# row arrives in a shape the compute functions silently drop.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is the floor: node --test's reporter output and the test runner
+        # itself are only stable from there. 24 is what development runs on.
+        node: ['20', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # No install step on purpose. The test suite imports only records-core.js
+      # and h2h-core.js, both of which are pure and dependency-free, so the
+      # tests run against a bare checkout. If that ever stops being true this
+      # job should start failing loudly rather than quietly growing an npm ci —
+      # a test that needs the resvg native binary to check a win streak is a
+      # test in the wrong layer.
+      - name: Run tests
+        run: node --test
