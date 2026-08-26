@@ -1,8 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { computeSeasonHistory, computeSuperlatives, parseGamesCsv } from '../records-core.js'
+import { computeSeasonHistory, computeSuperlatives, parseGamesCsv, recordsCopy } from '../records-core.js'
 import { canonicalOpponent, computeHeadToHead } from '../h2h-core.js'
+import { SITE } from '../site.js'
 
 // The real data, asserted against the real functions.
 //
@@ -178,4 +179,30 @@ test('every opponent record sums to its game count', () => {
 	for (const o of computeHeadToHead(rows).opponents) {
 		assert.equal(o.wins + o.losses + o.ties, o.games, `${o.name} does not add up`)
 	}
+})
+
+// 1929 finished 12–0–1: undefeated, with a scoreless tie against the Frankford
+// Yellow Jackets. A tie does not disqualify a perfect season here — the rule is
+// losses === 0 — so the list is never empty and the "no perfect season"
+// fallback in site.js can never render.
+//
+// Worth pinning both halves. If the rule ever changed to require zero ties, or
+// if 1929 dropped out of the data, this site would start publishing "No Packers
+// season has finished without a loss" — a sentence that is true only when it is
+// shown, and would be shown wrongly.
+test('1929 makes the no-perfect-season fallback unreachable', () => {
+	const perfect = supers.perfectSeasons
+	assert.ok(perfect.length > 0, 'the fallback copy would render')
+	assert.ok(perfect.some((s) => s.season === 1929), '1929 is missing from perfect seasons')
+
+	const card = recordsCopy('perfect-seasons', supers)
+	assert.notEqual(card.desc, SITE.copy.noPerfectSeason)
+	assert.match(card.desc, /12–0–1 in 1929/)
+})
+
+test('a tie does not disqualify an unbeaten season', () => {
+	const nineteen29 = history.find((s) => s.season === 1929)
+	assert.equal(nineteen29.ties, 1, '1929 should carry its tie')
+	assert.equal(nineteen29.losses, 0)
+	assert.equal(nineteen29.undefeated, true)
 })

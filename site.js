@@ -97,8 +97,17 @@ export const SITE = {
 	 *  charmless. They are the exception and should stay few; anything that is
 	 *  really just a noun belongs above. */
 	copy: {
-		/** A missing perfect season is a joke here and a statistical
-		 *  certainty in baseball, so the two sites cannot share the line. */
+		/** Shown only when the perfect-seasons list comes back empty — which
+		 *  for this site it never does, because 1929 finished 12–0–1.
+		 *
+		 *  Unreachable here and genuinely needed by the Brewers, who have no
+		 *  perfect season and never will: 162 games make one a statistical
+		 *  impossibility rather than a drought. The field stays in the shape
+		 *  both sites share; this site's value is a fallback that cannot fire.
+		 *
+		 *  An earlier comment here said a missing perfect season was "a joke
+		 *  here", which read as a claim that the Packers had none. They have
+		 *  one, the site renders it, and a test now pins that. */
 		noPerfectSeason: 'No Packers season has finished without a loss. Yet.',
 		/** Tone. A blowout loss gets a shrug rather than a statistic. */
 		worstLossAside: "We don't talk about it.",
