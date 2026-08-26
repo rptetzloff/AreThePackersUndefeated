@@ -7,6 +7,7 @@ import { parseGamesCsv, computeSeasonHistory, historyCopy } from './records-core
 import { parseCoachesCsv, computeCoaches } from './coaches-core.js';
 import { buildChartSvg, METRICS } from './history-chart.js';
 import { shareButtonsHtml, wireShareRow } from './share-core.js';
+import { SITE } from './site.js';
 
 const chartEl = document.getElementById('history-chart');
 const tooltip = document.getElementById('history-tooltip');
@@ -17,7 +18,7 @@ function seasonLabel(s) {
 	const notes = [];
 	if (s.superbowl) notes.push('Super Bowl champions');
 	else if (s.champion) notes.push('NFL champions');
-	if (s.undefeated) notes.push('perfect season');
+	if (s.undefeated) notes.push(`${SITE.losslessSeasonNoun.toLowerCase()} season`);
 	return `${s.season} · ${s.record} · PF ${s.pf} · PA ${s.pa}${notes.length ? ` · ${notes.join(', ')}` : ''}`;
 }
 

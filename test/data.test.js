@@ -196,7 +196,7 @@ test('1929 makes the no-perfect-season fallback unreachable', () => {
 	assert.ok(perfect.some((s) => s.season === 1929), '1929 is missing from perfect seasons')
 
 	const card = recordsCopy('perfect-seasons', supers)
-	assert.notEqual(card.desc, SITE.copy.noPerfectSeason)
+	assert.notEqual(card.desc, SITE.copy.noLosslessSeason)
 	assert.match(card.desc, /12–0–1 in 1929/)
 })
 

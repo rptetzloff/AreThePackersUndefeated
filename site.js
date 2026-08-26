@@ -41,6 +41,17 @@ export const SITE = {
 	 *  that lets those be one page. */
 	leaderNoun: 'coach',
 	leaderPlural: 'coaches',
+	/** What a season finished without a loss is called.
+	 *
+	 *  Not "perfect". In football that means no losses AND no ties — 1972
+	 *  Miami is the perfect season, and it is the only one. 1929 Green Bay
+	 *  went 12–0–1 with a scoreless tie against Frankford, which is
+	 *  undefeated. This site is named for the distinction, so it may as well
+	 *  observe it.
+	 *
+	 *  Baseball has no word for this because it has never happened. */
+	losslessSeasonNoun: 'Undefeated',
+
 	/** What a single game against an opponent is called, and its plural.
 	 *
 	 *  The plural is spelled out rather than derived. English does not add 's'
@@ -105,10 +116,10 @@ export const SITE = {
 		 *  impossibility rather than a drought. The field stays in the shape
 		 *  both sites share; this site's value is a fallback that cannot fire.
 		 *
-		 *  An earlier comment here said a missing perfect season was "a joke
+		 *  An earlier comment here said a missing lossless season was "a joke
 		 *  here", which read as a claim that the Packers had none. They have
 		 *  one, the site renders it, and a test now pins that. */
-		noPerfectSeason: 'No Packers season has finished without a loss. Yet.',
+		noLosslessSeason: 'No Packers season has finished without a loss. Yet.',
 		/** Tone. A blowout loss gets a shrug rather than a statistic. */
 		worstLossAside: "We don't talk about it.",
 		/** Same. */

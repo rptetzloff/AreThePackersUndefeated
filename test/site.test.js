@@ -20,13 +20,14 @@ const OTHER = {
 	championship: 'Otter Cup',
 	leaderNoun: 'skipper',
 	leaderPlural: 'skippers',
+	losslessSeasonNoun: 'Unbeaten',
 	meetingNoun: 'clash',
 	meetingPlural: 'clashes',
 	streaksSpanSeasons: false,
 	perfectSeasonIsPlausible: false,
 	records: ['best-starts'],
 	copy: {
-		noPerfectSeason: 'The Otters lose at least once a year, reliably.',
+		noLosslessSeason: 'The Otters lose at least once a year, reliably.',
 		worstLossAside: 'It was windy.',
 		worstStartAside: 'The season is long.',
 		noTies: 'The Otters have never drawn.',
@@ -39,6 +40,25 @@ const supers = computeSuperlatives(
 	{ now: LONG_AFTER },
 )
 const history = computeSeasonHistory(season(2011, 'WWL'), { now: LONG_AFTER })
+
+// 1929 went 12-0-1. In football "perfect" means no losses and no ties, which
+// is 1972 Miami and nobody else; 12-0-1 is undefeated. The site is named for
+// that distinction, so the card is too.
+test('a season without a loss is called undefeated, not perfect', () => {
+	assert.equal(SITE.losslessSeasonNoun, 'Undefeated')
+
+	const oneUndefeated = computeSuperlatives(
+		[...season(1929, 'WWT')], { now: LONG_AFTER })
+	const card = recordsCopy('perfect-seasons', oneUndefeated)
+	assert.match(card.title, /^Undefeated Packers Seasons/)
+	assert.ok(!card.title.includes('Perfect'), 'the old word survived in the title')
+
+	// The slug is untouched on purpose: /records/perfect-seasons is a live URL
+	// with a social card at /og/records/perfect-seasons.png, and renaming it
+	// would break every shared link. The label and the slug are allowed to
+	// disagree; only one of them is read by a person.
+	assert.ok(SITE.records.includes('perfect-seasons'))
+})
 
 test('the manifest names this site', () => {
 	assert.equal(SITE.team, 'Packers')
@@ -86,8 +106,8 @@ test('history copy uses the manifest', () => {
 // wholesale rather than derived.
 test('the flavour lines come from the manifest', () => {
 	const noPerfect = computeSuperlatives(season(2011, 'WWL'), { now: LONG_AFTER })
-	assert.equal(recordsCopy('perfect-seasons', noPerfect).desc, SITE.copy.noPerfectSeason)
-	assert.equal(recordsCopy('perfect-seasons', noPerfect, OTHER).desc, OTHER.copy.noPerfectSeason)
+	assert.equal(recordsCopy('perfect-seasons', noPerfect).desc, SITE.copy.noLosslessSeason)
+	assert.equal(recordsCopy('perfect-seasons', noPerfect, OTHER).desc, OTHER.copy.noLosslessSeason)
 
 	assert.match(recordsCopy('worst-starts', supers).desc, /It happens to the best of us\.$/)
 	assert.match(recordsCopy('worst-starts', supers, OTHER).desc, /The season is long\.$/)

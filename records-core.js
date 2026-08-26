@@ -246,10 +246,12 @@ export function recordsCopy(slug, data, site = SITE) {
 		case 'perfect-seasons': {
 			const p = data.perfectSeasons[0];
 			return {
-				title: p ? `Perfect ${site.team} Seasons — ${p.record} in ${p.season}` : `Perfect ${site.team} Seasons`,
+				title: p
+					? `${site.losslessSeasonNoun} ${site.team} Seasons — ${p.record} in ${p.season}`
+					: `${site.losslessSeasonNoun} ${site.team} Seasons`,
 				desc: p
 					? `Seasons the ${site.fullName} finished without a loss: ${data.perfectSeasons.map((x) => `${x.record} in ${x.season}`).join(', ')}.`
-					: site.copy.noPerfectSeason,
+					: site.copy.noLosslessSeason,
 			};
 		}
 		case 'win-streaks': {
@@ -291,7 +293,7 @@ export function recordsCopy(slug, data, site = SITE) {
 		default:
 			return {
 				title: `${site.team} Records & Superlatives`,
-				desc: `Best starts, perfect seasons, longest win streaks, worst starts, lopsided wins, worst losses, and every tie — ${site.fullName}, ${range}.`,
+				desc: `Best starts, ${site.losslessSeasonNoun.toLowerCase()} seasons, longest win streaks, worst starts, lopsided wins, worst losses, and every tie — ${site.fullName}, ${range}.`,
 			};
 	}
 }
