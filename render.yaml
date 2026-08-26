@@ -3,9 +3,34 @@
 services:
   - type: web
     name: are-the-packers-undefeated
+    domains: 
+      - arethepackersundefeated.com
+      - www.arethepackersundefeated.com
+    branch: main
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    autoDeploy: true
+    healthCheckPath: /
+    envVars:
+      # The box score indices need more heap than Node's default cap on a
+      # 512MB instance (~256MB); leave the rest for native/system overhead.
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=400
+
+  - type: web
+    name: are-the-packers-undefeated-dev
+    domains:
+      - dev.arethepackersundefeated.com
+    branch: dev
     runtime: node
     plan: free            # bump to "starter" to avoid cold-start spin-down
     buildCommand: npm install
     startCommand: node server.js
     autoDeploy: true
     healthCheckPath: /
+    envVars:
+      # The box score indices need more heap than Node's default cap on a
+      # 512MB instance (~256MB); leave the rest for native/system overhead.
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=400
