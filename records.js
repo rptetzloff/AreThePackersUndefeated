@@ -52,6 +52,54 @@ const CARDS = [
 		entries: (d) => d.lopsidedLosses.map(blowoutEntry),
 	},
 	{
+		slug: 'best-seasons', icon: 'mdi-star-outline', title: 'Best Seasons',
+		note: 'Highest regular-season win percentage',
+		entries: (d) => d.bestSeasons.map((b) => ({
+			main: b.record, subHtml: yearLink(b.season),
+			detail: `${(b.winPct * 100).toFixed(1)}%`,
+		})),
+	},
+	{
+		slug: 'worst-seasons', icon: 'mdi-emoticon-sad-outline', title: 'Worst Seasons',
+		note: 'Lowest regular-season win percentage',
+		entries: (d) => d.worstSeasons.map((w) => ({
+			main: w.record, subHtml: yearLink(w.season),
+			detail: `${(w.winPct * 100).toFixed(1)}%`,
+		})),
+	},
+	{
+		slug: 'losing-streaks', icon: 'mdi-snowflake', title: 'Longest Losing Streaks',
+		note: 'Consecutive regular-season losses (ties end a streak)',
+		entries: (d) => d.loseStreaks.map((s) => ({
+			main: `${s.games} straight`,
+			subHtml: s.startSeason === s.endSeason
+				? yearLink(s.startSeason)
+				: `${yearLink(s.startSeason)}–${yearLink(s.endSeason)}`,
+			detail: `${formatDate(s.startDate)} – ${formatDate(s.endDate)}`,
+		})),
+		empty: SITE.copy.noLosingStreak,
+	},
+	{
+		slug: 'playoff-appearances', icon: 'mdi-tournament', title: 'Playoff Appearances',
+		note: 'Seasons that reached the postseason',
+		// Newest first and not trimmed to top-N: this is a list of every one,
+		// like ties, rather than a ranking.
+		entries: (d) => d.playoffAppearances.map((a) => ({
+			main: a.record, subHtml: yearLink(a.season),
+			detail: a.championship ? `${SITE.championship}${a.won ? ' — won' : ''}` : `${a.games} game${a.games === 1 ? '' : 's'}`,
+		})),
+		empty: SITE.copy.noPlayoffs,
+	},
+	{
+		slug: 'championship-appearances', icon: 'mdi-trophy', title: `${SITE.championship} Appearances`,
+		note: `Seasons that reached the ${SITE.championship}`,
+		entries: (d) => d.championshipAppearances.map((c) => ({
+			main: c.won ? 'Won' : 'Lost', subHtml: yearLink(c.season),
+			detail: c.record,
+		})),
+		empty: SITE.copy.noChampionship,
+	},
+	{
 		slug: 'ties', icon: 'mdi-equal', title: 'Ties',
 		note: 'Every tie in franchise history, most recent first — overtime arrived in 1974',
 		entries: (d) => d.ties.map(blowoutEntry),
@@ -108,7 +156,19 @@ async function init() {
 		const data = computeSuperlatives(parseGames(await res.text()));
 		document.getElementById('records-subtitle').textContent =
 			`Green Bay Packers · ${data.seasonRange.first}–${data.seasonRange.last}`;
-		grid.innerHTML = CARDS.map((c) => cardHtml(c, data)).join('');
+		// The manifest decides which cards this deployment publishes, and in
+		// what order. CARDS is the catalogue of what can be rendered; SITE.records
+		// is the selection — so a sport that has no losing-streak card simply
+		// omits the slug rather than the code having to know about it.
+		//
+		// A slug in the manifest with no card here is a configuration mistake and
+		// says so, rather than silently rendering one card fewer.
+		const missing = SITE.records.filter((slug) => !CARDS.some((c) => c.slug === slug));
+		if (missing.length) console.warn(`records: no card defined for ${missing.join(', ')}`);
+		const published = SITE.records
+			.map((slug) => CARDS.find((c) => c.slug === slug))
+			.filter(Boolean);
+		grid.innerHTML = published.map((c) => cardHtml(c, data)).join('');
 		wireShares(grid, data);
 
 		const slug = requestedSlug();

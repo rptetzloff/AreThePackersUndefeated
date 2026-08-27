@@ -125,7 +125,10 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 	const bestStarts = seasonStarts('WIN');
 	const worstStarts = seasonStarts('LOSS');
 
+	// One row per season, built from the same pass that finds the unbeaten ones.
+	// Regular season only, matching every other list here.
 	const perfectSeasons = [];
+	const seasonRows = [];
 	for (const yr of years) {
 		let w = 0, l = 0, t = 0;
 		for (const g of seasons.get(yr)) {
@@ -134,33 +137,70 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 			else t++;
 		}
 		if (l === 0 && w > 0 && seasonSettled(yr, now)) perfectSeasons.push({ season: yr, wins: w, record: rec(w, l, t) });
+		const played = w + l + t;
+		seasonRows.push({
+			season: yr, wins: w, losses: l, ties: t, record: rec(w, l, t),
+			// Ties count half, as everywhere else.
+			winPct: played ? (w + t / 2) / played : 0,
+		});
 	}
 	perfectSeasons.sort((a, b) => b.wins - a.wins || a.season - b.season);
 
-	// Regular-season win streaks, allowed to span seasons; a loss or tie ends one.
-	const winStreaks = [];
-	let run = null;
-	const endRun = () => { if (run) { winStreaks.push(run); run = null; } };
-	for (const g of regular) {
-		if (g.result === 'WIN') {
-			if (!run) run = { games: 0, start: null, end: null };
-			run.games++;
-			if (!run.start) run.start = g;
-			run.end = g;
-		} else {
-			endRun();
+	// Best and worst seasons by win percentage.
+	//
+	// Settled seasons only: a team sitting at 3-0 in September would otherwise
+	// top the list at 1.000, which is the same guard perfectSeasons uses and for
+	// the same reason. The tiebreakers match the Brewers repo's so the two lists
+	// order identically when they merge — win percentage, then the count that
+	// makes the season more extreme, then the earlier year.
+	const completed = seasonRows.filter((r) => seasonSettled(r.season, now) && (r.wins + r.losses + r.ties) > 0);
+	const bestSeasons = completed.slice()
+		.sort((a, b) => b.winPct - a.winPct || b.wins - a.wins || a.season - b.season).slice(0, top);
+	const worstSeasons = completed.slice()
+		.sort((a, b) => a.winPct - b.winPct || a.losses - b.losses || a.season - b.season).slice(0, top);
+
+	// Regular-season streaks of a given result, allowed to span seasons; anything
+	// else ends one. A tie ends a win streak, by record-book convention.
+	//
+	// Parameterised rather than written twice, which is what the losing-streaks
+	// card needed — and what a shared core will need anyway, since the Brewers
+	// repo has had both lists all along and computes them from one function.
+	//
+	// Streaks run across season boundaries here, and deliberately do not in
+	// baseball. Seventeen games make the cross-season run the record worth
+	// quoting; across 162 the within-season one is what anyone means. The value
+	// is declared in site.js as streaksSpanSeasons and this is the behaviour it
+	// describes.
+	const streaksOf = (result) => {
+		const streaks = [];
+		let run = null;
+		const endRun = () => { if (run) { streaks.push(run); run = null; } };
+		for (const g of regular) {
+			if (g.result === result) {
+				if (!run) run = { games: 0, start: null, end: null };
+				run.games++;
+				if (!run.start) run.start = g;
+				run.end = g;
+			} else {
+				endRun();
+			}
 		}
-	}
-	endRun();
+		endRun();
+		return streaks;
+	};
+	const winStreaks = streaksOf('WIN');
+	const loseStreaks = streaksOf('LOSS');
 	const streakEntry = (s) => ({
 		games: s.games,
 		startDate: s.start.date, endDate: s.end.date,
 		startSeason: parseInt(s.start.season, 10), endSeason: parseInt(s.end.season, 10),
 	});
-	const topStreaks = winStreaks
+	const rankStreaks = (list) => list
 		.sort((a, b) => b.games - a.games || (a.start.date < b.start.date ? -1 : 1))
 		.slice(0, top)
 		.map(streakEntry);
+	const topStreaks = rankStreaks(winStreaks);
+	const topLoseStreaks = rankStreaks(loseStreaks);
 
 	const gameInfo = (g) => {
 		const pf = parseInt(g.scoreFor, 10) || 0;
@@ -185,9 +225,47 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 	// Every tie ever, not a top-N list; newest first.
 	const ties = games.filter((g) => g.result === 'TIE').map(gameInfo).reverse();
 
+	// Postseason seasons, newest first.
+	//
+	// Simpler than the Brewers version, and the difference is the sport rather
+	// than the code. Baseball's postseason is a ladder of best-of series, so
+	// that repo groups games into series and labels each round. Football's is
+	// single elimination: one game per round, and the record is just how far
+	// they got. So an appearance here lists its games rather than its series.
+	const postseason = games.filter((g) => g.regular_season !== '1');
+	const bySeasonPost = new Map();
+	for (const g of postseason) {
+		const yr = parseInt(g.season, 10);
+		if (!bySeasonPost.has(yr)) bySeasonPost.set(yr, []);
+		bySeasonPost.get(yr).push(g);
+	}
+	const playoffAppearances = [...bySeasonPost.entries()]
+		.map(([season, list]) => {
+			const w = list.filter((g) => g.result === 'WIN').length;
+			const l = list.filter((g) => g.result === 'LOSS').length;
+			const last = list[list.length - 1];
+			return {
+				season,
+				games: list.length,
+				record: `${w}–${l}`,
+				// Whether the run ended in a win is what makes it a title, and it
+				// is the same rule computeSeasonHistory uses for `champion`.
+				won: last.result === 'WIN',
+				championship: list.some((g) => g.championship && g.championship.trim()),
+			};
+		})
+		.sort((a, b) => b.season - a.season);
+
+	// Seasons that reached the championship game, won or lost.
+	const championshipAppearances = playoffAppearances
+		.filter((a) => a.championship)
+		.map((a) => ({ season: a.season, won: a.won, record: a.record }));
+
 	return {
 		seasonRange, bestStarts, perfectSeasons, winStreaks: topStreaks, worstStarts,
 		lopsidedWins: lopsided('WIN'), lopsidedLosses: lopsided('LOSS'), ties,
+		loseStreaks: topLoseStreaks, bestSeasons, worstSeasons,
+		playoffAppearances, championshipAppearances,
 	};
 }
 
@@ -315,6 +393,45 @@ export function recordsCopy(slug, data, site = SITE) {
 			return {
 				title: `Worst ${site.team} Losses — ${g.pf}–${g.pa} to the ${g.opponent}`,
 				desc: `The most lopsided loss in ${site.fullName} history: ${g.pa}–${g.pf} to the ${g.opponent} on ${formatDate(g.date)}. ${site.copy.worstLossAside}`,
+			};
+		}
+		case 'best-seasons': {
+			const b = data.bestSeasons[0];
+			return {
+				title: `Best ${site.team} Seasons — ${b.record} in ${b.season}`,
+				desc: `The best regular season in ${site.fullName} history: ${b.record} in ${b.season}. Top ${data.bestSeasons.length} seasons, ${range}.`,
+			};
+		}
+		case 'worst-seasons': {
+			const w = data.worstSeasons[0];
+			return {
+				title: `Worst ${site.team} Seasons — ${w.record} in ${w.season}`,
+				desc: `The worst regular season in ${site.fullName} history: ${w.record} in ${w.season}. ${site.copy.worstStartAside}`,
+			};
+		}
+		case 'losing-streaks': {
+			const s = data.loseStreaks[0];
+			if (!s) return { title: `Longest ${site.team} Losing Streaks`, desc: site.copy.noLosingStreak };
+			return {
+				title: `Longest ${site.team} Losing Streaks — ${s.games} straight (${streakSpan(s)})`,
+				desc: `The longest regular-season losing streak in ${site.fullName} history: ${s.games} straight, ${formatDate(s.startDate)} to ${formatDate(s.endDate)}. ${site.copy.worstLossAside}`,
+			};
+		}
+		case 'playoff-appearances': {
+			const p = data.playoffAppearances;
+			if (!p.length) return { title: `${site.team} Playoff Appearances`, desc: site.copy.noPlayoffs };
+			return {
+				title: `${site.team} Playoff Appearances — ${p.length} all-time`,
+				desc: `The ${site.fullName} have reached the playoffs ${p.length} times, most recently in ${p[0].season} (${p[0].record}).`,
+			};
+		}
+		case 'championship-appearances': {
+			const c = data.championshipAppearances;
+			if (!c.length) return { title: `${site.team} ${site.championship} Appearances`, desc: site.copy.noChampionship };
+			const won = c.filter((x) => x.won).length;
+			return {
+				title: `${site.team} ${site.championship} Appearances — ${c.length}, ${won} won`,
+				desc: `The ${site.fullName} have played in ${c.length} ${site.championship}s and won ${won}, most recently ${c[0].season}.`,
 			};
 		}
 		case 'ties': {
