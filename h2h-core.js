@@ -1,6 +1,7 @@
 // Shared (browser + node) all-time head-to-head records vs every opponent,
 // computed from data/packers_games.csv. Pure functions only — no fs/fetch/DOM.
 import { rec, formatDate } from './records-core.js';
+import { SITE } from './site.js';
 
 export const slugifyOpponent = (name) =>
 	name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -35,7 +36,7 @@ const RESULTS = new Set(['WIN', 'LOSS', 'TIE']);
 // included); the playoff split is broken out per opponent.
 export function computeHeadToHead(rows) {
 	const games = rows
-		.filter((g) => RESULTS.has(g['Packers Win']))
+		.filter((g) => RESULTS.has(g.result))
 		.slice()
 		.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
@@ -48,9 +49,9 @@ export function computeHeadToHead(rows) {
 
 	const info = (g) => ({
 		date: g.date, season: parseInt(g.season, 10),
-		result: g['Packers Win'],
-		pf: parseInt(g.packers_score, 10) || 0,
-		pa: parseInt(g.opponent_score, 10) || 0,
+		result: g.result,
+		pf: parseInt(g.scoreFor, 10) || 0,
+		pa: parseInt(g.scoreAgainst, 10) || 0,
 	});
 
 	const opponents = [...byOpp.entries()].map(([name, list]) => {
@@ -58,7 +59,7 @@ export function computeHeadToHead(rows) {
 		const playoff = { WIN: 0, LOSS: 0, TIE: 0 };
 		let biggestWin = null;
 		for (const g of list) {
-			const r = g['Packers Win'];
+			const r = g.result;
 			count[r]++;
 			if (g.regular_season !== '1') playoff[r]++;
 			if (r === 'WIN') {
@@ -68,7 +69,7 @@ export function computeHeadToHead(rows) {
 		}
 		const last = list[list.length - 1];
 		let streak = 1;
-		for (let i = list.length - 2; i >= 0 && list[i]['Packers Win'] === last['Packers Win']; i--) streak++;
+		for (let i = list.length - 2; i >= 0 && list[i].result === last.result; i--) streak++;
 		const playoffGames = playoff.WIN + playoff.LOSS + playoff.TIE;
 		return {
 			name, slug: slugifyOpponent(name),
@@ -80,7 +81,7 @@ export function computeHeadToHead(rows) {
 			playoffGames,
 			playoffRecord: playoffGames ? rec(playoff.WIN, playoff.LOSS, playoff.TIE) : null,
 			first: info(list[0]), last: info(last),
-			streak: { result: last['Packers Win'], count: streak },
+			streak: { result: last.result, count: streak },
 			biggestWin,
 		};
 	}).sort((a, b) => b.games - a.games || (a.name < b.name ? -1 : 1));
@@ -89,29 +90,29 @@ export function computeHeadToHead(rows) {
 }
 
 // "The Packers have won the last 8 meetings." / single-game fallback.
-export function streakSentence(o) {
+export function streakSentence(o, site = SITE) {
 	const { result, count } = o.streak;
 	const verb = result === 'WIN' ? 'won' : result === 'LOSS' ? 'lost' : 'tied';
-	if (count >= 2) return `The Packers have ${verb} the last ${count} meetings.`;
+	if (count >= 2) return `The ${site.team} have ${verb} the last ${count} ${site.meetingPlural}.`;
 	const noun = result === 'WIN' ? 'win' : result === 'LOSS' ? 'loss' : 'tie';
-	return `Last meeting: a ${o.last.pf}–${o.last.pa} ${noun} on ${formatDate(o.last.date)}.`;
+	return `Last ${site.meetingNoun}: a ${o.last.pf}–${o.last.pa} ${noun} on ${formatDate(o.last.date)}.`;
 }
 
 // Per-opponent copy shared by server OG meta and client share messages.
 // slug 'overview'/unknown -> landing-page copy.
-export function h2hCopy(slug, data) {
+export function h2hCopy(slug, data, site = SITE) {
 	const o = data.bySlug.get(slug);
 	if (!o) {
 		const top = data.opponents[0];
 		return {
-			title: 'Packers All-Time Head-to-Head',
-			desc: `The Packers' all-time record against all ${data.opponents.length} opponents they've ever faced. Most played: the ${top.name}, ${top.record} in ${top.games} meetings.`,
+			title: `${site.team} All-Time Head-to-Head`,
+			desc: `The ${site.team}' all-time record against all ${data.opponents.length} opponents they've ever faced. Most played: the ${top.name}, ${top.record} in ${top.games} ${site.meetingPlural}.`,
 		};
 	}
 	return {
-		title: `Packers vs ${o.name} — ${o.record} all-time`,
-		desc: `The Packers are ${o.record} all-time against the ${o.name} in ${meetings(o.games)}. ${streakSentence(o)}`,
+		title: `${site.team} vs ${o.name} — ${o.record} all-time`,
+		desc: `The ${site.team} are ${o.record} all-time against the ${o.name} in ${meetings(o.games, site)}. ${streakSentence(o, site)}`,
 	};
 }
 
-export const meetings = (n) => `${n} meeting${n === 1 ? '' : 's'}`;
+export const meetings = (n, site = SITE) => `${n} ${n === 1 ? site.meetingNoun : site.meetingPlural}`;

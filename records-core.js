@@ -1,3 +1,5 @@
+import { SITE } from './site.js';
+
 // Shared (browser + node) computation of Packers records/superlatives from
 // data/packers_games.csv. Pure functions only — no fs/fetch/DOM.
 
@@ -21,6 +23,41 @@ export function parseGamesCsv(raw) {
 		headers.forEach((h, i) => { o[h] = v[i] ?? ''; });
 		return o;
 	});
+}
+
+/** Parse the games CSV into the shape every compute function reads.
+ *
+ *  parseGamesCsv above stays generic — it is a header-to-object mapper and is
+ *  also used for photos.csv and packers_season_records.csv, so normalising
+ *  inside it would rename fields on files that have nothing to do with games.
+ *
+ *  This is the seam the Brewers repo gets for free, because Retrosheet's raw
+ *  columns are nothing like the ones its code wants and its parser has to build
+ *  the row anyway. Here the CSV very nearly is the internal shape, which is why
+ *  the team name ended up in the field names: the file has a column literally
+ *  called "Packers Win".
+ *
+ *  Mapping it here means every function above reads `result` and `scoreFor`,
+ *  and the data file is free to be regenerated with different headers — which
+ *  it will need to be, since the shared core wants rows carrying team ids
+ *  rather than rows already flattened to one club's point of view.
+ */
+export function parseGames(raw) {
+	return parseGamesCsv(raw).map((r) => ({
+		date: r.date,
+		season: r.season,
+		regular_season: r.regular_season,
+		playoff: r.playoff,
+		// The three fields whose CSV names carry the club's own name. This is
+		// the only place in the codebase that may mention them, and it is the
+		// whole point of the function.
+		championship: r.superbowl,
+		Opponent: r.Opponent,
+		result: r['Packers Win'],
+		scoreFor: r.packers_score,
+		scoreAgainst: r.opponent_score,
+		location: r.location,
+	}));
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -58,7 +95,7 @@ const seasonSettled = (yr, now) =>
 // playoffs, flagged.
 export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 	const games = rows
-		.filter((r) => RESULTS.has(r['Packers Win']))
+		.filter((r) => RESULTS.has(r.result))
 		.slice()
 		.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 	const regular = games.filter((r) => r.regular_season === '1');
@@ -78,7 +115,7 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 		for (const yr of years) {
 			let n = 0;
 			for (const g of seasons.get(yr)) {
-				if (g['Packers Win'] === result) n++;
+				if (g.result === result) n++;
 				else break;
 			}
 			if (n > 0) out.push({ season: yr, games: n });
@@ -88,57 +125,97 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 	const bestStarts = seasonStarts('WIN');
 	const worstStarts = seasonStarts('LOSS');
 
+	// One row per season, built from the same pass that finds the unbeaten ones.
+	// Regular season only, matching every other list here.
 	const perfectSeasons = [];
+	const seasonRows = [];
 	for (const yr of years) {
 		let w = 0, l = 0, t = 0;
 		for (const g of seasons.get(yr)) {
-			if (g['Packers Win'] === 'WIN') w++;
-			else if (g['Packers Win'] === 'LOSS') l++;
+			if (g.result === 'WIN') w++;
+			else if (g.result === 'LOSS') l++;
 			else t++;
 		}
 		if (l === 0 && w > 0 && seasonSettled(yr, now)) perfectSeasons.push({ season: yr, wins: w, record: rec(w, l, t) });
+		const played = w + l + t;
+		seasonRows.push({
+			season: yr, wins: w, losses: l, ties: t, record: rec(w, l, t),
+			// Ties count half, as everywhere else.
+			winPct: played ? (w + t / 2) / played : 0,
+		});
 	}
 	perfectSeasons.sort((a, b) => b.wins - a.wins || a.season - b.season);
 
-	// Regular-season win streaks, allowed to span seasons; a loss or tie ends one.
-	const winStreaks = [];
-	let run = null;
-	const endRun = () => { if (run) { winStreaks.push(run); run = null; } };
-	for (const g of regular) {
-		if (g['Packers Win'] === 'WIN') {
-			if (!run) run = { games: 0, start: null, end: null };
-			run.games++;
-			if (!run.start) run.start = g;
-			run.end = g;
-		} else {
-			endRun();
+	// Best and worst seasons by win percentage.
+	//
+	// Settled seasons only: a team sitting at 3-0 in September would otherwise
+	// top the list at 1.000, which is the same guard perfectSeasons uses and for
+	// the same reason. The tiebreakers match the Brewers repo's so the two lists
+	// order identically when they merge — win percentage, then the count that
+	// makes the season more extreme, then the earlier year.
+	const completed = seasonRows.filter((r) => seasonSettled(r.season, now) && (r.wins + r.losses + r.ties) > 0);
+	const bestSeasons = completed.slice()
+		.sort((a, b) => b.winPct - a.winPct || b.wins - a.wins || a.season - b.season).slice(0, top);
+	const worstSeasons = completed.slice()
+		.sort((a, b) => a.winPct - b.winPct || a.losses - b.losses || a.season - b.season).slice(0, top);
+
+	// Regular-season streaks of a given result, allowed to span seasons; anything
+	// else ends one. A tie ends a win streak, by record-book convention.
+	//
+	// Parameterised rather than written twice, which is what the losing-streaks
+	// card needed — and what a shared core will need anyway, since the Brewers
+	// repo has had both lists all along and computes them from one function.
+	//
+	// Streaks run across season boundaries here, and deliberately do not in
+	// baseball. Seventeen games make the cross-season run the record worth
+	// quoting; across 162 the within-season one is what anyone means. The value
+	// is declared in site.js as streaksSpanSeasons and this is the behaviour it
+	// describes.
+	const streaksOf = (result) => {
+		const streaks = [];
+		let run = null;
+		const endRun = () => { if (run) { streaks.push(run); run = null; } };
+		for (const g of regular) {
+			if (g.result === result) {
+				if (!run) run = { games: 0, start: null, end: null };
+				run.games++;
+				if (!run.start) run.start = g;
+				run.end = g;
+			} else {
+				endRun();
+			}
 		}
-	}
-	endRun();
+		endRun();
+		return streaks;
+	};
+	const winStreaks = streaksOf('WIN');
+	const loseStreaks = streaksOf('LOSS');
 	const streakEntry = (s) => ({
 		games: s.games,
 		startDate: s.start.date, endDate: s.end.date,
 		startSeason: parseInt(s.start.season, 10), endSeason: parseInt(s.end.season, 10),
 	});
-	const topStreaks = winStreaks
+	const rankStreaks = (list) => list
 		.sort((a, b) => b.games - a.games || (a.start.date < b.start.date ? -1 : 1))
 		.slice(0, top)
 		.map(streakEntry);
+	const topStreaks = rankStreaks(winStreaks);
+	const topLoseStreaks = rankStreaks(loseStreaks);
 
 	const gameInfo = (g) => {
-		const pf = parseInt(g.packers_score, 10) || 0;
-		const pa = parseInt(g.opponent_score, 10) || 0;
+		const pf = parseInt(g.scoreFor, 10) || 0;
+		const pa = parseInt(g.scoreAgainst, 10) || 0;
 		return {
 			date: g.date, season: parseInt(g.season, 10), opponent: g.Opponent,
 			pf, pa,
 			playoff: g.regular_season !== '1',
-			superbowl: !!(g.superbowl && g.superbowl.trim()),
+			championship: !!(g.championship && g.championship.trim()),
 		};
 	};
 
 	// Biggest margins, either direction; sort by margin, then winner's score, then date.
 	const lopsided = (result) => games
-		.filter((g) => g['Packers Win'] === result)
+		.filter((g) => g.result === result)
 		.map(gameInfo)
 		.sort((a, b) => Math.abs(b.pf - b.pa) - Math.abs(a.pf - a.pa)
 			|| Math.max(b.pf, b.pa) - Math.max(a.pf, a.pa)
@@ -146,11 +223,49 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 		.slice(0, top);
 
 	// Every tie ever, not a top-N list; newest first.
-	const ties = games.filter((g) => g['Packers Win'] === 'TIE').map(gameInfo).reverse();
+	const ties = games.filter((g) => g.result === 'TIE').map(gameInfo).reverse();
+
+	// Postseason seasons, newest first.
+	//
+	// Simpler than the Brewers version, and the difference is the sport rather
+	// than the code. Baseball's postseason is a ladder of best-of series, so
+	// that repo groups games into series and labels each round. Football's is
+	// single elimination: one game per round, and the record is just how far
+	// they got. So an appearance here lists its games rather than its series.
+	const postseason = games.filter((g) => g.regular_season !== '1');
+	const bySeasonPost = new Map();
+	for (const g of postseason) {
+		const yr = parseInt(g.season, 10);
+		if (!bySeasonPost.has(yr)) bySeasonPost.set(yr, []);
+		bySeasonPost.get(yr).push(g);
+	}
+	const playoffAppearances = [...bySeasonPost.entries()]
+		.map(([season, list]) => {
+			const w = list.filter((g) => g.result === 'WIN').length;
+			const l = list.filter((g) => g.result === 'LOSS').length;
+			const last = list[list.length - 1];
+			return {
+				season,
+				games: list.length,
+				record: `${w}–${l}`,
+				// Whether the run ended in a win is what makes it a title, and it
+				// is the same rule computeSeasonHistory uses for `champion`.
+				won: last.result === 'WIN',
+				championship: list.some((g) => g.championship && g.championship.trim()),
+			};
+		})
+		.sort((a, b) => b.season - a.season);
+
+	// Seasons that reached the championship game, won or lost.
+	const championshipAppearances = playoffAppearances
+		.filter((a) => a.championship)
+		.map((a) => ({ season: a.season, won: a.won, record: a.record }));
 
 	return {
 		seasonRange, bestStarts, perfectSeasons, winStreaks: topStreaks, worstStarts,
 		lopsidedWins: lopsided('WIN'), lopsidedLosses: lopsided('LOSS'), ties,
+		loseStreaks: topLoseStreaks, bestSeasons, worstSeasons,
+		playoffAppearances, championshipAppearances,
 	};
 }
 
@@ -168,7 +283,7 @@ const STANDINGS_TITLES = new Set([1929, 1930, 1931]);
 // champion and undefeated flags always use their own rules regardless.
 export function computeSeasonHistory(rows, { now = new Date(), playoffs = false } = {}) {
 	const games = rows
-		.filter((r) => ['WIN', 'LOSS', 'TIE'].includes(r['Packers Win']))
+		.filter((r) => ['WIN', 'LOSS', 'TIE'].includes(r.result))
 		.slice()
 		.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 	const bySeason = new Map();
@@ -180,23 +295,23 @@ export function computeSeasonHistory(rows, { now = new Date(), playoffs = false 
 	return [...bySeason.keys()].sort((a, b) => a - b).map((yr) => {
 		let w = 0, l = 0, t = 0, pf = 0, pa = 0, regLosses = 0, regWins = 0;
 		let lastPlayoff = null;
-		let superbowl = false;
+		let championship = false;
 		for (const g of bySeason.get(yr)) {
 			const isReg = g.regular_season === '1';
 			if (!isReg) {
 				lastPlayoff = g;
-				if (g.superbowl && g.superbowl.trim() && g['Packers Win'] === 'WIN') superbowl = true;
+				if (g.championship && g.championship.trim() && g.result === 'WIN') championship = true;
 			}
 			if (isReg) {
-				if (g['Packers Win'] === 'WIN') regWins++;
-				else if (g['Packers Win'] === 'LOSS') regLosses++;
+				if (g.result === 'WIN') regWins++;
+				else if (g.result === 'LOSS') regLosses++;
 			}
 			if (!isReg && !playoffs) continue;
-			if (g['Packers Win'] === 'WIN') w++;
-			else if (g['Packers Win'] === 'LOSS') l++;
+			if (g.result === 'WIN') w++;
+			else if (g.result === 'LOSS') l++;
 			else t++;
-			pf += parseInt(g.packers_score, 10) || 0;
-			pa += parseInt(g.opponent_score, 10) || 0;
+			pf += parseInt(g.scoreFor, 10) || 0;
+			pa += parseInt(g.scoreAgainst, 10) || 0;
 		}
 		const gamesPlayed = w + l + t;
 		return {
@@ -205,87 +320,144 @@ export function computeSeasonHistory(rows, { now = new Date(), playoffs = false 
 			record: rec(w, l, t),
 			winPct: gamesPlayed ? (w + t / 2) / gamesPlayed : 0,
 			pf, pa,
-			champion: STANDINGS_TITLES.has(yr) || (lastPlayoff !== null && lastPlayoff['Packers Win'] === 'WIN'),
-			superbowl,
+			champion: STANDINGS_TITLES.has(yr) || (lastPlayoff !== null && lastPlayoff.result === 'WIN'),
+			championship,
 			undefeated: regLosses === 0 && regWins > 0 && seasonSettled(yr, now),
 		};
 	});
 }
 
 // Meta copy for the /history page, shared by server OG meta and client share.
-export function historyCopy(history) {
+//
+// `site` is the vocabulary this deployment uses — see site.js. It is a
+// parameter with a default rather than a bare import so that the same function
+// can serve another sport, and so a test can hand it a different one without
+// touching the module it is testing. Every call site that does not care about
+// vocabulary carries on unchanged.
+export function historyCopy(history, site = SITE) {
 	const first = history[0].season, last = history[history.length - 1].season;
 	const titles = history.filter((s) => s.champion).length;
 	const winning = history.filter((s) => s.winPct > 0.5).length;
 	return {
-		title: `Packers Season-by-Season History, ${first}–${last}`,
-		desc: `Every Green Bay Packers season since ${first} in one chart: ${titles} championships and ${winning} winning seasons across ${history.length} years.`,
+		title: `${site.team} Season-by-Season History, ${first}–${last}`,
+		desc: `Every ${site.fullName} season since ${first} in one chart: ${titles} championships and ${winning} winning seasons across ${history.length} years.`,
 	};
 }
 
 // Per-card copy shared by server OG meta and client share messages.
 // slug 'overview' covers the /records landing URL.
-export function recordsCopy(slug, data) {
+export function recordsCopy(slug, data, site = SITE) {
 	const range = `${data.seasonRange.first}–${data.seasonRange.last}`;
 	switch (slug) {
 		case 'best-starts': {
 			const b = data.bestStarts[0];
 			return {
-				title: `Best Packers Season Starts — ${b.games}–0 in ${b.season}`,
-				desc: `The best start in Green Bay Packers history: ${b.games}–0 to open the ${b.season} season. Top ${data.bestStarts.length} starts, ${range}.`,
+				title: `Best ${site.team} Season Starts — ${b.games}–0 in ${b.season}`,
+				desc: `The best start in ${site.fullName} history: ${b.games}–0 to open the ${b.season} season. Top ${data.bestStarts.length} starts, ${range}.`,
 			};
 		}
 		case 'perfect-seasons': {
 			const p = data.perfectSeasons[0];
 			return {
-				title: p ? `Perfect Packers Seasons — ${p.record} in ${p.season}` : 'Perfect Packers Seasons',
+				title: p
+					? `${site.losslessSeasonNoun} ${site.team} Seasons — ${p.record} in ${p.season}`
+					: `${site.losslessSeasonNoun} ${site.team} Seasons`,
 				desc: p
-					? `Seasons the Green Bay Packers finished without a loss: ${data.perfectSeasons.map((x) => `${x.record} in ${x.season}`).join(', ')}.`
-					: 'No Packers season has finished without a loss. Yet.',
+					? `Seasons the ${site.fullName} finished without a loss: ${data.perfectSeasons.map((x) => `${x.record} in ${x.season}`).join(', ')}.`
+					: site.copy.noLosslessSeason,
 			};
 		}
 		case 'win-streaks': {
 			const s = data.winStreaks[0];
 			return {
-				title: `Longest Packers Win Streaks — ${s.games} straight (${streakSpan(s)})`,
-				desc: `The longest regular-season win streak in Green Bay Packers history: ${s.games} straight, ${formatDate(s.startDate)} to ${formatDate(s.endDate)}.`,
+				title: `Longest ${site.team} Win Streaks — ${s.games} straight (${streakSpan(s)})`,
+				desc: `The longest regular-season win streak in ${site.fullName} history: ${s.games} straight, ${formatDate(s.startDate)} to ${formatDate(s.endDate)}.`,
 			};
 		}
 		case 'worst-starts': {
 			const w = data.worstStarts[0];
 			return {
-				title: `Worst Packers Season Starts — 0–${w.games} in ${w.season}`,
-				desc: `The worst start in Green Bay Packers history: 0–${w.games} to open the ${w.season} season. It happens to the best of us.`,
+				title: `Worst ${site.team} Season Starts — 0–${w.games} in ${w.season}`,
+				desc: `The worst start in ${site.fullName} history: 0–${w.games} to open the ${w.season} season. ${site.copy.worstStartAside}`,
 			};
 		}
 		case 'lopsided-wins': {
 			const g = data.lopsidedWins[0];
 			return {
-				title: `Most Lopsided Packers Wins — ${g.pf}–${g.pa} over the ${g.opponent}`,
-				desc: `The biggest blowout in Green Bay Packers history: ${g.pf}–${g.pa} over the ${g.opponent} on ${formatDate(g.date)}.`,
+				title: `Most Lopsided ${site.team} Wins — ${g.pf}–${g.pa} over the ${g.opponent}`,
+				desc: `The biggest blowout in ${site.fullName} history: ${g.pf}–${g.pa} over the ${g.opponent} on ${formatDate(g.date)}.`,
 			};
 		}
 		case 'worst-losses': {
 			const g = data.lopsidedLosses[0];
 			return {
-				title: `Worst Packers Losses — ${g.pf}–${g.pa} to the ${g.opponent}`,
-				desc: `The most lopsided loss in Green Bay Packers history: ${g.pa}–${g.pf} to the ${g.opponent} on ${formatDate(g.date)}. We don't talk about it.`,
+				title: `Worst ${site.team} Losses — ${g.pf}–${g.pa} to the ${g.opponent}`,
+				desc: `The most lopsided loss in ${site.fullName} history: ${g.pa}–${g.pf} to the ${g.opponent} on ${formatDate(g.date)}. ${site.copy.worstLossAside}`,
+			};
+		}
+		case 'best-seasons': {
+			const b = data.bestSeasons[0];
+			return {
+				title: `Best ${site.team} Seasons — ${b.record} in ${b.season}`,
+				desc: `The best regular season in ${site.fullName} history: ${b.record} in ${b.season}. Top ${data.bestSeasons.length} seasons, ${range}.`,
+			};
+		}
+		case 'worst-seasons': {
+			const w = data.worstSeasons[0];
+			return {
+				title: `Worst ${site.team} Seasons — ${w.record} in ${w.season}`,
+				desc: `The worst regular season in ${site.fullName} history: ${w.record} in ${w.season}. ${site.copy.worstStartAside}`,
+			};
+		}
+		case 'losing-streaks': {
+			const s = data.loseStreaks[0];
+			if (!s) return { title: `Longest ${site.team} Losing Streaks`, desc: site.copy.noLosingStreak };
+			return {
+				title: `Longest ${site.team} Losing Streaks — ${s.games} straight (${streakSpan(s)})`,
+				desc: `The longest regular-season losing streak in ${site.fullName} history: ${s.games} straight, ${formatDate(s.startDate)} to ${formatDate(s.endDate)}. ${site.copy.worstLossAside}`,
+			};
+		}
+		case 'playoff-appearances': {
+			const p = data.playoffAppearances;
+			if (!p.length) return { title: `${site.team} Playoff Appearances`, desc: site.copy.noPlayoffs };
+			return {
+				title: `${site.team} Playoff Appearances — ${p.length} all-time`,
+				desc: `The ${site.fullName} have reached the playoffs ${p.length} times, most recently in ${p[0].season} (${p[0].record}).`,
+			};
+		}
+		case 'championship-appearances': {
+			const c = data.championshipAppearances;
+			if (!c.length) return { title: `${site.team} ${site.championship} Appearances`, desc: site.copy.noChampionship };
+			const won = c.filter((x) => x.won).length;
+			return {
+				title: `${site.team} ${site.championship} Appearances — ${c.length}, ${won} won`,
+				desc: `The ${site.fullName} have played in ${c.length} ${site.championship}s and won ${won}, most recently ${c[0].season}.`,
 			};
 		}
 		case 'ties': {
 			const t = data.ties[0];
-			if (!t) return { title: 'Packers Ties', desc: 'The Packers have never tied a game.' };
+			if (!t) return { title: `${site.team} Ties`, desc: site.copy.noTies };
 			return {
-				title: `Packers Ties — ${data.ties.length} all-time`,
-				desc: `The Packers have played ${data.ties.length} ties. Most recent: ${t.pf}–${t.pa} vs the ${t.opponent} on ${formatDate(t.date)}.`,
+				title: `${site.team} Ties — ${data.ties.length} all-time`,
+				desc: `The ${site.team} have played ${data.ties.length} ties. Most recent: ${t.pf}–${t.pa} vs the ${t.opponent} on ${formatDate(t.date)}.`,
 			};
 		}
 		default:
 			return {
-				title: 'Packers Records & Superlatives',
-				desc: `Best starts, perfect seasons, longest win streaks, worst starts, lopsided wins, worst losses, and every tie — Green Bay Packers, ${range}.`,
+				title: `${site.team} Records & Superlatives`,
+				desc: `Best starts, ${site.losslessSeasonNoun.toLowerCase()} seasons, longest win streaks, worst starts, lopsided wins, worst losses, and every tie — ${site.fullName}, ${range}.`,
 			};
 	}
 }
 
-export const RECORD_SLUGS = ['best-starts', 'perfect-seasons', 'win-streaks', 'worst-starts', 'lopsided-wins', 'worst-losses', 'ties'];
+// The record cards this site publishes, read out of the manifest rather than
+// listed again here.
+//
+// It was a literal until site.js gained the same list, and two lists that must
+// agree are one list read twice — the copy that drifts is the one nobody is
+// looking at. site.js is the source because it is where a sport says what
+// records it has, and adding a card is then a one-line change in one file.
+//
+// Kept as an export so the four call sites in lib/records.js and records.js
+// did not have to change.
+export const RECORD_SLUGS = SITE.records;

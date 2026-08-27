@@ -1,4 +1,4 @@
-        import { parseGamesCsv, computeSeasonHistory, localDate } from './records-core.js';
+        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate } from './records-core.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
         import { buildChartSvg } from './history-chart.js';
         import { intentUrls, copyText, flashCopied } from './share-core.js';
@@ -59,7 +59,7 @@
         			]);
         			if (gamesRes.ok) {
         				const raw = await gamesRes.text();
-        				const games = parseGamesCsv(raw);
+        				const games = parseGames(raw);
         				this.csvBySeason = buildSeasonMap(games);
         				// name -> all-time head-to-head entry, for schedule annotations
         				this.h2hByName = new Map(computeHeadToHead(games).opponents.map(o => [o.name, o]));
@@ -315,8 +315,8 @@ processCsvSeasonData(season) {
         		// Check for Super Bowl win (superbowl column is non-empty)
  let superBowlName = null;
  games.forEach(g => {
-     if (g.superbowl && g.superbowl.trim() !== '' && g['Packers Win'] === 'WIN') {
-        superBowlName = `Super Bowl ${g.superbowl.toUpperCase()}`;
+     if (g.championship && g.championship.trim() !== '' && g['Packers Win'] === 'WIN') {
+        superBowlName = `Super Bowl ${g.championship.toUpperCase()}`;
     }
 });
 
@@ -385,7 +385,7 @@ createCsvGameItem(g, showH2h = false) {
         		const packersScore = parseInt(g.packers_score) || 0;
         		const opponentScore = parseInt(g.opponent_score) || 0;
         		const date = localDate(g.date);
-        		const isSuperBowl = g.superbowl && g.superbowl.trim() !== '';
+        		const isSuperBowl = g.championship && g.championship.trim() !== '';
 
         		const gameItem = document.createElement('div');
         		gameItem.className = 'game-item completed';
@@ -421,7 +421,7 @@ createCsvGameItem(g, showH2h = false) {
         		if (isSuperBowl) {
         			const sbLabel = document.createElement('div');
         			sbLabel.className = 'game-status';
-        			sbLabel.textContent = `Super Bowl ${g.superbowl.toUpperCase()}`;
+        			sbLabel.textContent = `Super Bowl ${g.championship.toUpperCase()}`;
         			gameDetails.appendChild(sbLabel);
         		}
 

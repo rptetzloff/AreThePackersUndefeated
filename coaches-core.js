@@ -1,3 +1,9 @@
+import { SITE } from './site.js';
+
+/** Title case for a manifest noun used at the start of a heading. The
+ *  manifest stores lowercase because most uses are mid-sentence. */
+const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
+
 // Shared (browser + node) head-coach records, computed by assigning every
 // game to a coaching tenure by date. Tenures come from
 // data/packers_coaches.csv (from/to dates, so mid-season changes like
@@ -26,7 +32,7 @@ const RESULTS = new Set(['WIN', 'LOSS', 'TIE']);
 // that champion season's final game.
 export function computeCoaches(rows, tenures, championSeasons) {
 	const games = rows
-		.filter((g) => RESULTS.has(g['Packers Win']))
+		.filter((g) => RESULTS.has(g.result))
 		.slice()
 		.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
@@ -75,9 +81,9 @@ export function computeCoaches(rows, tenures, championSeasons) {
 			const playoff = { WIN: 0, LOSS: 0, TIE: 0 };
 			let pf = 0, pa = 0;
 			for (const g of list) {
-				(g.regular_season === '1' ? reg : playoff)[g['Packers Win']]++;
-				pf += parseInt(g.packers_score, 10) || 0;
-				pa += parseInt(g.opponent_score, 10) || 0;
+				(g.regular_season === '1' ? reg : playoff)[g.result]++;
+				pf += parseInt(g.scoreFor, 10) || 0;
+				pa += parseInt(g.scoreAgainst, 10) || 0;
 			}
 			const regGames = reg.WIN + reg.LOSS + reg.TIE;
 			const playoffGames = playoff.WIN + playoff.LOSS + playoff.TIE;
@@ -113,7 +119,7 @@ export function coachesCopy(data) {
 	const wins = [...coaches].sort((a, b) => b.wins - a.wins)[0];
 	const titles = coaches.reduce((s, c) => s + c.titles, 0);
 	return {
-		title: `Packers Head Coaches, ${coaches[0].firstSeason}–present`,
-		desc: `Every Green Bay Packers head coach and their record — ${regular} of them (plus interim stints), ${titles} championships. Most wins: ${wins.name} (${wins.record}).`,
+		title: `${SITE.team} Head ${cap(SITE.leaderPlural)}, ${coaches[0].firstSeason}–present`,
+		desc: `Every ${SITE.fullName} head ${SITE.leaderNoun} and their record — ${regular} of them (plus interim stints), ${titles} championships. Most wins: ${wins.name} (${wins.record}).`,
 	};
 }

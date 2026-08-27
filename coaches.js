@@ -2,7 +2,7 @@
 // record, computed from the shared coaches-core.js (games assigned to
 // tenures by exact dates, so mid-season changes split correctly). Columns
 // sort on click; coach photos open in the site's lightbox.
-import { parseGamesCsv, computeSeasonHistory, esc } from './records-core.js';
+import { parseGames, computeSeasonHistory, esc } from './records-core.js';
 import { parseCoachesCsv, computeCoaches, coachesCopy } from './coaches-core.js';
 import { shareButtonsHtml, wireShareRow } from './share-core.js';
 import { sortItems, wireSortHeaders } from './sortable.js';
@@ -78,7 +78,7 @@ async function init() {
 			fetch('/data/packers_coaches.csv'),
 		]);
 		if (!gamesRes.ok || !coachesRes.ok) throw new Error('CSV fetch failed');
-		const rows = parseGamesCsv(await gamesRes.text());
+		const rows = parseGames(await gamesRes.text());
 		const champions = computeSeasonHistory(rows).filter((s) => s.champion).map((s) => s.season);
 		const data = computeCoaches(rows, parseCoachesCsv(await coachesRes.text()), champions);
 
