@@ -1,5 +1,6 @@
 // Records & Superlatives page: computes superlatives from the games CSV
 // (records-core.js, shared with the server) and renders one shareable card each.
+import { SITE } from './site.js';
 import { parseGamesCsv, computeSuperlatives, recordsCopy, formatDate, RECORD_SLUGS, esc } from './records-core.js';
 import { shareButtonsHtml, wireShareRow } from './share-core.js';
 
@@ -19,10 +20,10 @@ const CARDS = [
 		entries: (d) => d.bestStarts.map((b) => ({ main: `${b.games}–0`, subHtml: yearLink(b.season) })),
 	},
 	{
-		slug: 'perfect-seasons', icon: 'mdi-trophy-outline', title: 'Perfect Seasons',
+		slug: 'perfect-seasons', icon: 'mdi-trophy-outline', title: `${SITE.losslessSeasonNoun} Seasons`,
 		note: 'Finished the regular season without a loss',
 		entries: (d) => d.perfectSeasons.map((p) => ({ main: p.record, subHtml: yearLink(p.season) })),
-		empty: 'No perfect seasons. Yet.',
+		empty: `No ${SITE.losslessSeasonNoun.toLowerCase()} seasons. Yet.`,
 	},
 	{
 		slug: 'win-streaks', icon: 'mdi-fire', title: 'Longest Win Streaks',
