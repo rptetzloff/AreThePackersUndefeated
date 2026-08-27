@@ -1175,7 +1175,16 @@ details:not([open]) > .collapsible-summary::before {
 /* --- Records & Superlatives page --- */
 
 .records-container {
+    /* width, not just max-width. body is a column flexbox with
+       align-items: center, so a flex item carrying only a max-width is sized
+       shrink-to-fit and its inline size is indefinite. An auto-fit track list
+       resolves to exactly one repetition when the available inline size is
+       indefinite, so .records-grid below collapsed to a single column and the
+       page rendered as one tall stack. The mobile rule already sets
+       width: 100%, which is why this only ever went wrong above 600px. */
+    width: 100%;
     max-width: 900px;
+    box-sizing: border-box;
 }
 
 .records-back {
@@ -1206,7 +1215,12 @@ details:not([open]) > .collapsible-summary::before {
 
 .records-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    /* Columns never drop below 300px: narrower and the entry detail lines
+       (dates, opponents) wrap badly. The container caps at 900px (836px
+       inner), so this yields two comfortable columns rather than three
+       cramped ones. min(100%, ...) keeps very small phones from overflowing.
+       Matches the baseball site's rule exactly. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
     gap: 1.25rem;
     text-align: left;
 }
