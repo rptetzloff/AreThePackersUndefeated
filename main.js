@@ -297,7 +297,7 @@ processCsvSeasonData(season) {
  let postWins = 0, postLosses = 0, postTies = 0;
 
  games.forEach(g => {
-     const result = g['Packers Win'];
+     const result = g.result;
      const isPlayoff = g.playoff === '1';
      const isRegular = g.regular_season === '1';
 
@@ -312,10 +312,10 @@ processCsvSeasonData(season) {
     }
 });
 
-        		// Check for Super Bowl win (superbowl column is non-empty)
+        		// Check for Super Bowl win (the championship field is non-empty)
  let superBowlName = null;
  games.forEach(g => {
-     if (g.championship && g.championship.trim() !== '' && g['Packers Win'] === 'WIN') {
+     if (g.championship && g.championship.trim() !== '' && g.result === 'WIN') {
         superBowlName = `Super Bowl ${g.championship.toUpperCase()}`;
     }
 });
@@ -331,8 +331,8 @@ processCsvSeasonData(season) {
  this.setupShareButtons();
 
  const csvCompletedGames = games
- .filter(g => g.regular_season === '1' && g['Packers Win'])
- .map(g => ({ result: g['Packers Win'], date: new Date(g.date) }));
+ .filter(g => g.regular_season === '1' && g.result)
+ .map(g => ({ result: g.result, date: new Date(g.date) }));
  this.updateStreakBanner(csvCompletedGames, season !== this.latestSeason);
 }
 
@@ -379,11 +379,11 @@ displayCsvSchedule(games, season) {
 }
 
 createCsvGameItem(g, showH2h = false) {
-        		const result = g['Packers Win']; // WIN / LOSS / TIE
+        		const result = g.result; // WIN / LOSS / TIE
         		const opponent = g.Opponent;
         		const location = g.location; // HOME / AWAY / NEUTRAL
-        		const packersScore = parseInt(g.packers_score) || 0;
-        		const opponentScore = parseInt(g.opponent_score) || 0;
+        		const packersScore = parseInt(g.scoreFor) || 0;
+        		const opponentScore = parseInt(g.scoreAgainst) || 0;
         		const date = localDate(g.date);
         		const isSuperBowl = g.championship && g.championship.trim() !== '';
 
@@ -1150,12 +1150,12 @@ this._renderOnThisDay(el, pool[Math.floor(Math.random() * pool.length)], pool);
 
 _renderOnThisDay(el, pick, pool) {
   const { game, season, date } = pick;
-  const result = game['Packers Win'];
+  const result = game.result;
   const opponent = game['Opponent'] || game['opponent'] || 'Unknown';
-  const packersScore = game['packers_score'];
-  const oppScore = game['opponent_score'];
+  const packersScore = game.scoreFor;
+  const oppScore = game.scoreAgainst;
   const isPlayoff = game['playoff'] === '1' || game['playoff'] === 'true';
-  const isSuperbowl = game['superbowl'] && game['superbowl'] !== '';
+  const isSuperbowl = game.championship && game.championship !== '';
 
   const resultClass = result === 'WIN' ? 'win' : result === 'LOSS' ? 'loss' : 'tie';
   const resultLabel = result === 'WIN' ? 'W' : result === 'LOSS' ? 'L' : 'T';
