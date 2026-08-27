@@ -108,17 +108,24 @@ export const SITE = {
 	 *  charmless. They are the exception and should stay few; anything that is
 	 *  really just a noun belongs above. */
 	copy: {
-		/** Shown only when the perfect-seasons list comes back empty — which
+		/** Shown only when the undefeated-seasons list comes back empty — which
 		 *  for this site it never does, because 1929 finished 12–0–1.
 		 *
-		 *  Unreachable here and genuinely needed by the Brewers, who have no
-		 *  perfect season and never will: 162 games make one a statistical
-		 *  impossibility rather than a drought. The field stays in the shape
-		 *  both sites share; this site's value is a fallback that cannot fire.
+		 *  Unreachable on both sites, in fact. An earlier version of this
+		 *  comment said it was "genuinely needed by the Brewers"; it is not.
+		 *  That site computes perfectSeasons and publishes no card for it —
+		 *  perfect-seasons is absent from its twenty slugs, and the similarly
+		 *  named perfect-games is a different record entirely. So the line has
+		 *  no reader today on either deployment.
 		 *
-		 *  An earlier comment here said a missing lossless season was "a joke
+		 *  It stays because it has a reader tomorrow. A third team hosting this
+		 *  code with no undefeated season in its history — most of the league —
+		 *  renders exactly this, and a card whose empty state is blank is worse
+		 *  than one that says why it is empty.
+		 *
+		 *  An earlier version also called a missing undefeated season "a joke
 		 *  here", which read as a claim that the Packers had none. They have
-		 *  one, the site renders it, and a test now pins that. */
+		 *  one, the site renders it, and a test pins that. */
 		noLosslessSeason: 'No Packers season has finished without a loss. Yet.',
 		/** Tone. A blowout loss gets a shrug rather than a statistic. */
 		worstLossAside: "We don't talk about it.",
