@@ -113,12 +113,17 @@ export const SITE = {
 	 *  football counterpart at all. A shared core computes what it is asked
 	 *  for, and this is the asking. */
 	records: [
+		'best-seasons',
+		'worst-seasons',
 		'best-starts',
 		'perfect-seasons',
 		'win-streaks',
+		'losing-streaks',
 		'worst-starts',
 		'lopsided-wins',
 		'worst-losses',
+		'playoff-appearances',
+		'championship-appearances',
 		'ties',
 	],
 
@@ -155,6 +160,14 @@ export const SITE = {
 		worstStartAside: 'It happens to the best of us.',
 		/** Ties are ordinary here and nearly extinct in baseball. */
 		noTies: 'The Packers have never tied a game.',
+		/** The three cards backported from the baseball site. Their fallbacks
+		 *  are unreachable here — this team has losing streaks, playoff
+		 *  appearances and Super Bowls — but a card whose empty state is blank
+		 *  is worse than one that says why, and the next franchise to host this
+		 *  code may well need all three. */
+		noLosingStreak: 'The Packers have never lost consecutive games. Remarkable.',
+		noPlayoffs: 'The Packers have not yet reached the playoffs.',
+		noChampionship: 'The Packers have not yet reached a Super Bowl.',
 	},
 }
 
