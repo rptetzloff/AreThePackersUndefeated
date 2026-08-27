@@ -51,7 +51,24 @@ latent problems: `!text` falls back to `core.autocrlf` and strips CRs on the
 next add, and seven files across the two repos had CRLF working copies over LF
 blobs, which `git status` hid by normalising before comparing.
 
-### ~~Site manifest~~ — in review
+### ~~Site manifests, both repos~~ — in review
+`site.js` in each: the team's names, the sport's nouns, which records exist, and
+the sentences a template gets wrong. Copy functions take it as a parameter with
+a default, so a shared core can hand them a different sport and no call site
+changed. Proved invisible by byte-diff — 24 rendered strings here, 50 there.
+
+**The diff between the two files is the specification**, and it is now concrete:
+eight fields differ, three match, six of twenty-one record slugs are shared, and
+the copy overrides barely overlap. `streaksSpanSeasons` is the only genuine rule
+disagreement.
+
+Three fields stay declarative on purpose — `scoreNoun` has no prose reader yet,
+and `streaksSpanSeasons` and `perfectSeasonIsPlausible` describe rules the
+compute functions still hardcode. Their tests assert the declaration matches the
+behaviour rather than driving it, so the day those cores merge, reading one
+backwards fails a test.
+
+### ~~Site manifest~~ — superseded by the entry above
 `site.js` here: the team's names, the sport's nouns, which records exist, and
 the handful of lines a template gets wrong. Copy functions take it as a
 parameter with a default, so a shared core can hand them a different sport and
@@ -112,6 +129,23 @@ call sites.
 Not portable: everything TV — providers, channels, watch modal, sponsor slots.
 Those exist because one site answers "can I watch this" and the other answers
 "are they still undefeated."
+
+### Commit the current season's data
+Today the season in progress never touches a CSV. `lib/espn-current.js` fetches
+ESPN, synthesises rows in Retrosheet's exact column order, serves them from
+`/api/current/*.csv`, and the pages append them before parsing. A year guard
+(`year <= maxSeason`) disables it the moment Retrosheet publishes.
+
+It is clever and it is fragile in the way live dependencies are: the site's
+history table is only as available as ESPN, the synthesis is untested, and a
+team-name that fails to map to a Retrosheet code becomes an opponent that
+silently does not exist.
+
+Committing the current season instead — the same synthesis, run on a schedule,
+output written to a file — makes the path testable, makes the site work when
+ESPN does not, and removes the only place where what the page shows depends on
+a network call. The Packers repo already commits its data weekly on a cron; this
+is that pattern applied to the harder feed.
 
 ### Get the data out of the code repo
 Brewers is **458MB of data against 916MB of working tree**, with
