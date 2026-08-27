@@ -113,10 +113,10 @@ test('equal margins are broken by the higher score', () => {
 })
 
 test('lopsided lists include playoff games and say so', () => {
-	const rows = [game({ date: '1968-01-14', season: 1967, regular: false, result: 'WIN', pf: 33, pa: 14, superbowl: 'II' })]
+	const rows = [game({ date: '1968-01-14', season: 1967, regular: false, result: 'WIN', pf: 33, pa: 14, championship: 'II' })]
 	const [g] = compute(rows).lopsidedWins
 	assert.equal(g.playoff, true)
-	assert.equal(g.superbowl, true)
+	assert.equal(g.championship, true)
 })
 
 test('ties are listed in full and newest first', () => {

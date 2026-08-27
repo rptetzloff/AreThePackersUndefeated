@@ -32,7 +32,7 @@ test('a season with no games is 0 rather than NaN', () => {
 test('playoffs are excluded from the record by default', () => {
 	const rows = [
 		...season(2010, 'WWL'),
-		game({ date: '2011-02-06', season: 2010, regular: false, result: 'WIN', pf: 31, pa: 25, superbowl: 'XLV' }),
+		game({ date: '2011-02-06', season: 2010, regular: false, result: 'WIN', pf: 31, pa: 25, championship: 'XLV' }),
 	]
 	const s = seasonOf(rows, 2010)
 	assert.equal(s.record, '2–1')
@@ -42,7 +42,7 @@ test('playoffs are excluded from the record by default', () => {
 test('playoffs fold into the record when asked for', () => {
 	const rows = [
 		...season(2010, 'WWL'),
-		game({ date: '2011-02-06', season: 2010, regular: false, result: 'WIN', pf: 31, pa: 25, superbowl: 'XLV' }),
+		game({ date: '2011-02-06', season: 2010, regular: false, result: 'WIN', pf: 31, pa: 25, championship: 'XLV' }),
 	]
 	assert.equal(seasonOf(rows, 2010, { playoffs: true }).record, '3–1')
 })
@@ -50,11 +50,11 @@ test('playoffs fold into the record when asked for', () => {
 test('winning the final playoff game makes a champion', () => {
 	const rows = [
 		...season(2010, 'WW'),
-		game({ date: '2011-02-06', season: 2010, regular: false, result: 'WIN', superbowl: 'XLV' }),
+		game({ date: '2011-02-06', season: 2010, regular: false, result: 'WIN', championship: 'XLV' }),
 	]
 	const s = seasonOf(rows, 2010)
 	assert.equal(s.champion, true)
-	assert.equal(s.superbowl, true)
+	assert.equal(s.championship, true)
 })
 
 test('losing the final playoff game does not', () => {
@@ -91,10 +91,10 @@ test('a neighbouring unbeaten season is not awarded a standings title', () => {
 test('superbowl is only true when the Super Bowl was won', () => {
 	const rows = [
 		...season(1997, 'WW'),
-		game({ date: '1998-01-25', season: 1997, regular: false, result: 'LOSS', superbowl: 'XXXII' }),
+		game({ date: '1998-01-25', season: 1997, regular: false, result: 'LOSS', championship: 'XXXII' }),
 	]
 	const s = seasonOf(rows, 1997)
-	assert.equal(s.superbowl, false)
+	assert.equal(s.championship, false)
 	assert.equal(s.champion, false)
 })
 

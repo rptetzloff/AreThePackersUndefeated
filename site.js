@@ -69,6 +69,21 @@ export const SITE = {
 	meetingNoun: 'meeting',
 	meetingPlural: 'meetings',
 
+	/** Which team this deployment is about.
+	 *
+	 *  Declared for the shape the Brewers repo already uses, and NOT yet doing
+	 *  anything here — that repo selects rows by team id out of league-wide
+	 *  data, and this one's CSV carries no team ids at all. It is already
+	 *  flattened to one club's point of view, with an Opponent column and no
+	 *  indication of who the other side of it was.
+	 *
+	 *  So this is the field that says what still has to change: moving to a
+	 *  league-wide feed with team ids is what makes this code servable for
+	 *  another franchise, and until then the value is documentation.
+	 *
+	 *  GB is the nflverse code; GNB appears in some other sources. */
+	teamIds: ['GB'],
+
 	// --- rules, not words ---
 
 	/** Whether a win streak may continue across a season boundary.

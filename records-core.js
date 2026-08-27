@@ -25,6 +25,41 @@ export function parseGamesCsv(raw) {
 	});
 }
 
+/** Parse the games CSV into the shape every compute function reads.
+ *
+ *  parseGamesCsv above stays generic — it is a header-to-object mapper and is
+ *  also used for photos.csv and packers_season_records.csv, so normalising
+ *  inside it would rename fields on files that have nothing to do with games.
+ *
+ *  This is the seam the Brewers repo gets for free, because Retrosheet's raw
+ *  columns are nothing like the ones its code wants and its parser has to build
+ *  the row anyway. Here the CSV very nearly is the internal shape, which is why
+ *  the team name ended up in the field names: the file has a column literally
+ *  called "Packers Win".
+ *
+ *  Mapping it here means every function above reads `result` and `scoreFor`,
+ *  and the data file is free to be regenerated with different headers — which
+ *  it will need to be, since the shared core wants rows carrying team ids
+ *  rather than rows already flattened to one club's point of view.
+ */
+export function parseGames(raw) {
+	return parseGamesCsv(raw).map((r) => ({
+		date: r.date,
+		season: r.season,
+		regular_season: r.regular_season,
+		playoff: r.playoff,
+		// The three fields whose CSV names carry the club's own name. This is
+		// the only place in the codebase that may mention them, and it is the
+		// whole point of the function.
+		championship: r.superbowl,
+		Opponent: r.Opponent,
+		result: r['Packers Win'],
+		scoreFor: r.packers_score,
+		scoreAgainst: r.opponent_score,
+		location: r.location,
+	}));
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // 'YYYY-MM-DD' -> 'Oct 23, 1966' without Date() timezone pitfalls.
@@ -60,7 +95,7 @@ const seasonSettled = (yr, now) =>
 // playoffs, flagged.
 export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 	const games = rows
-		.filter((r) => RESULTS.has(r['Packers Win']))
+		.filter((r) => RESULTS.has(r.result))
 		.slice()
 		.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 	const regular = games.filter((r) => r.regular_season === '1');
@@ -80,7 +115,7 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 		for (const yr of years) {
 			let n = 0;
 			for (const g of seasons.get(yr)) {
-				if (g['Packers Win'] === result) n++;
+				if (g.result === result) n++;
 				else break;
 			}
 			if (n > 0) out.push({ season: yr, games: n });
@@ -94,8 +129,8 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 	for (const yr of years) {
 		let w = 0, l = 0, t = 0;
 		for (const g of seasons.get(yr)) {
-			if (g['Packers Win'] === 'WIN') w++;
-			else if (g['Packers Win'] === 'LOSS') l++;
+			if (g.result === 'WIN') w++;
+			else if (g.result === 'LOSS') l++;
 			else t++;
 		}
 		if (l === 0 && w > 0 && seasonSettled(yr, now)) perfectSeasons.push({ season: yr, wins: w, record: rec(w, l, t) });
@@ -107,7 +142,7 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 	let run = null;
 	const endRun = () => { if (run) { winStreaks.push(run); run = null; } };
 	for (const g of regular) {
-		if (g['Packers Win'] === 'WIN') {
+		if (g.result === 'WIN') {
 			if (!run) run = { games: 0, start: null, end: null };
 			run.games++;
 			if (!run.start) run.start = g;
@@ -128,19 +163,19 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 		.map(streakEntry);
 
 	const gameInfo = (g) => {
-		const pf = parseInt(g.packers_score, 10) || 0;
-		const pa = parseInt(g.opponent_score, 10) || 0;
+		const pf = parseInt(g.scoreFor, 10) || 0;
+		const pa = parseInt(g.scoreAgainst, 10) || 0;
 		return {
 			date: g.date, season: parseInt(g.season, 10), opponent: g.Opponent,
 			pf, pa,
 			playoff: g.regular_season !== '1',
-			superbowl: !!(g.superbowl && g.superbowl.trim()),
+			championship: !!(g.championship && g.championship.trim()),
 		};
 	};
 
 	// Biggest margins, either direction; sort by margin, then winner's score, then date.
 	const lopsided = (result) => games
-		.filter((g) => g['Packers Win'] === result)
+		.filter((g) => g.result === result)
 		.map(gameInfo)
 		.sort((a, b) => Math.abs(b.pf - b.pa) - Math.abs(a.pf - a.pa)
 			|| Math.max(b.pf, b.pa) - Math.max(a.pf, a.pa)
@@ -148,7 +183,7 @@ export function computeSuperlatives(rows, { top = 5, now = new Date() } = {}) {
 		.slice(0, top);
 
 	// Every tie ever, not a top-N list; newest first.
-	const ties = games.filter((g) => g['Packers Win'] === 'TIE').map(gameInfo).reverse();
+	const ties = games.filter((g) => g.result === 'TIE').map(gameInfo).reverse();
 
 	return {
 		seasonRange, bestStarts, perfectSeasons, winStreaks: topStreaks, worstStarts,
@@ -170,7 +205,7 @@ const STANDINGS_TITLES = new Set([1929, 1930, 1931]);
 // champion and undefeated flags always use their own rules regardless.
 export function computeSeasonHistory(rows, { now = new Date(), playoffs = false } = {}) {
 	const games = rows
-		.filter((r) => ['WIN', 'LOSS', 'TIE'].includes(r['Packers Win']))
+		.filter((r) => ['WIN', 'LOSS', 'TIE'].includes(r.result))
 		.slice()
 		.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 	const bySeason = new Map();
@@ -182,23 +217,23 @@ export function computeSeasonHistory(rows, { now = new Date(), playoffs = false 
 	return [...bySeason.keys()].sort((a, b) => a - b).map((yr) => {
 		let w = 0, l = 0, t = 0, pf = 0, pa = 0, regLosses = 0, regWins = 0;
 		let lastPlayoff = null;
-		let superbowl = false;
+		let championship = false;
 		for (const g of bySeason.get(yr)) {
 			const isReg = g.regular_season === '1';
 			if (!isReg) {
 				lastPlayoff = g;
-				if (g.superbowl && g.superbowl.trim() && g['Packers Win'] === 'WIN') superbowl = true;
+				if (g.championship && g.championship.trim() && g.result === 'WIN') championship = true;
 			}
 			if (isReg) {
-				if (g['Packers Win'] === 'WIN') regWins++;
-				else if (g['Packers Win'] === 'LOSS') regLosses++;
+				if (g.result === 'WIN') regWins++;
+				else if (g.result === 'LOSS') regLosses++;
 			}
 			if (!isReg && !playoffs) continue;
-			if (g['Packers Win'] === 'WIN') w++;
-			else if (g['Packers Win'] === 'LOSS') l++;
+			if (g.result === 'WIN') w++;
+			else if (g.result === 'LOSS') l++;
 			else t++;
-			pf += parseInt(g.packers_score, 10) || 0;
-			pa += parseInt(g.opponent_score, 10) || 0;
+			pf += parseInt(g.scoreFor, 10) || 0;
+			pa += parseInt(g.scoreAgainst, 10) || 0;
 		}
 		const gamesPlayed = w + l + t;
 		return {
@@ -207,8 +242,8 @@ export function computeSeasonHistory(rows, { now = new Date(), playoffs = false 
 			record: rec(w, l, t),
 			winPct: gamesPlayed ? (w + t / 2) / gamesPlayed : 0,
 			pf, pa,
-			champion: STANDINGS_TITLES.has(yr) || (lastPlayoff !== null && lastPlayoff['Packers Win'] === 'WIN'),
-			superbowl,
+			champion: STANDINGS_TITLES.has(yr) || (lastPlayoff !== null && lastPlayoff.result === 'WIN'),
+			championship,
 			undefeated: regLosses === 0 && regWins > 0 && seasonSettled(yr, now),
 		};
 	});

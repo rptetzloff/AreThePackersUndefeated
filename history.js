@@ -3,7 +3,7 @@
 // (records-core.js). Multiple metrics can be plotted at once, playoffs can be
 // folded in, coach-era strips carry each coach's record, hover shows a
 // season's numbers, and clicking a season opens its page.
-import { parseGamesCsv, computeSeasonHistory, historyCopy } from './records-core.js';
+import { parseGames, computeSeasonHistory, historyCopy } from './records-core.js';
 import { parseCoachesCsv, computeCoaches } from './coaches-core.js';
 import { buildChartSvg, METRICS } from './history-chart.js';
 import { shareButtonsHtml, wireShareRow } from './share-core.js';
@@ -16,7 +16,7 @@ const pct = (p) => (p >= 1 ? '1.000' : p.toFixed(3).replace(/^0/, ''));
 
 function seasonLabel(s) {
 	const notes = [];
-	if (s.superbowl) notes.push(`${SITE.championship} champions`);
+	if (s.championship) notes.push(`${SITE.championship} champions`);
 	else if (s.champion) notes.push('NFL champions');
 	if (s.undefeated) notes.push(`${SITE.losslessSeasonNoun.toLowerCase()} season`);
 	return `${s.season} · ${s.record} · PF ${s.pf} · PA ${s.pa}${notes.length ? ` · ${notes.join(', ')}` : ''}`;
@@ -81,7 +81,7 @@ async function init() {
 			fetch('/data/packers_coaches.csv'),
 		]);
 		if (!gamesRes.ok || !coachesRes.ok) throw new Error('CSV fetch failed');
-		const rows = parseGamesCsv(await gamesRes.text());
+		const rows = parseGames(await gamesRes.text());
 		const histories = {
 			regular: computeSeasonHistory(rows),
 			playoffs: computeSeasonHistory(rows, { playoffs: true }),
