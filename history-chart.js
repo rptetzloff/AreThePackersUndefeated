@@ -1,3 +1,4 @@
+import { SITE } from './site.js';
 // Shared (browser + node) SVG builder for the franchise-history chart: one
 // point per season. Pure string output, no DOM — the /history page, the
 // homepage sparkline, and the server-rendered social card all use it.
@@ -12,8 +13,8 @@ const DARK = '#152A1E';
 export const METRICS = {
 	winPct: { label: 'Win %', color: GOLD, group: 'pct' },
 	wins: { label: 'Wins', color: WHITE, group: 'count' },
-	pf: { label: 'Points For', color: '#7FC4FF', group: 'points' },
-	pa: { label: 'Points Against', color: '#FF6B6B', group: 'points' },
+	pf: { label: SITE.scoreForLabel, color: '#7FC4FF', group: 'points' },
+	pa: { label: SITE.scoreAgainstLabel, color: '#FF6B6B', group: 'points' },
 };
 
 // history: computeSeasonHistory() output. Options:

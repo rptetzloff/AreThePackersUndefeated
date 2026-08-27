@@ -16,7 +16,7 @@ const pct = (p) => (p >= 1 ? '1.000' : p.toFixed(3).replace(/^0/, ''));
 
 function seasonLabel(s) {
 	const notes = [];
-	if (s.superbowl) notes.push('Super Bowl champions');
+	if (s.superbowl) notes.push(`${SITE.championship} champions`);
 	else if (s.champion) notes.push('NFL champions');
 	if (s.undefeated) notes.push(`${SITE.losslessSeasonNoun.toLowerCase()} season`);
 	return `${s.season} · ${s.record} · PF ${s.pf} · PA ${s.pa}${notes.length ? ` · ${notes.join(', ')}` : ''}`;

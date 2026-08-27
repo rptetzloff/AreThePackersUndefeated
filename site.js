@@ -31,9 +31,16 @@ export const SITE = {
 
 	// --- the sport's vocabulary ---
 
-	/** What a score is made of. Baseball scores runs, football scores points,
-	 *  and every "runs for / runs against" label depends on this. */
+	/** What a score is made of. Used in prose.
+	 *
+	 *  The chart labels below are NOT derived from it, which was the first
+	 *  attempt. Football says "Points For" and baseball says "Runs Scored" —
+	 *  different verbs, not just different nouns — so `${scoreNoun} For` gives
+	 *  "Runs For", which nobody writes. Substitution is not translation here
+	 *  either, so both labels are spelled out. */
 	scoreNoun: 'points',
+	scoreForLabel: 'Points For',
+	scoreAgainstLabel: 'Points Against',
 	/** The trophy. Used wherever a season's ending is described. */
 	championship: 'Super Bowl',
 	/** What the person in charge is called. This is why one site has
