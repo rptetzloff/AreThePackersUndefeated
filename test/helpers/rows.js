@@ -1,6 +1,6 @@
 // Building game rows by hand, so a test says what it is about.
 //
-// The CSV columns are positional and oddly named ('Packers Win' holds
+// The CSV columns are positional and oddly named ('result' holds
 // WIN/LOSS/TIE, regular_season is the string '1'), which makes a literal row
 // object in a test read as noise. These helpers keep the shape in one place:
 // when the CSV gains a column, this file changes and the tests do not.
@@ -14,7 +14,7 @@ export function game({
 	pa = 17,
 	opponent = 'Chicago Bears',
 	regular = true,
-	superbowl = '',
+	championship = '',
 	location = 'HOME',
 } = {}) {
 	return {
@@ -24,11 +24,11 @@ export function game({
 		season: String(season ?? date.slice(0, 4)),
 		regular_season: regular ? '1' : '0',
 		playoff: regular ? '0' : '1',
-		superbowl,
+		championship,
 		Opponent: opponent,
-		'Packers Win': result,
-		packers_score: String(pf),
-		opponent_score: String(pa),
+		result,
+		scoreFor: String(pf),
+		scoreAgainst: String(pa),
 		location,
 	};
 }

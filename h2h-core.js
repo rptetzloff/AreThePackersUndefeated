@@ -36,7 +36,7 @@ const RESULTS = new Set(['WIN', 'LOSS', 'TIE']);
 // included); the playoff split is broken out per opponent.
 export function computeHeadToHead(rows) {
 	const games = rows
-		.filter((g) => RESULTS.has(g['Packers Win']))
+		.filter((g) => RESULTS.has(g.result))
 		.slice()
 		.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
@@ -49,9 +49,9 @@ export function computeHeadToHead(rows) {
 
 	const info = (g) => ({
 		date: g.date, season: parseInt(g.season, 10),
-		result: g['Packers Win'],
-		pf: parseInt(g.packers_score, 10) || 0,
-		pa: parseInt(g.opponent_score, 10) || 0,
+		result: g.result,
+		pf: parseInt(g.scoreFor, 10) || 0,
+		pa: parseInt(g.scoreAgainst, 10) || 0,
 	});
 
 	const opponents = [...byOpp.entries()].map(([name, list]) => {
@@ -59,7 +59,7 @@ export function computeHeadToHead(rows) {
 		const playoff = { WIN: 0, LOSS: 0, TIE: 0 };
 		let biggestWin = null;
 		for (const g of list) {
-			const r = g['Packers Win'];
+			const r = g.result;
 			count[r]++;
 			if (g.regular_season !== '1') playoff[r]++;
 			if (r === 'WIN') {
@@ -69,7 +69,7 @@ export function computeHeadToHead(rows) {
 		}
 		const last = list[list.length - 1];
 		let streak = 1;
-		for (let i = list.length - 2; i >= 0 && list[i]['Packers Win'] === last['Packers Win']; i--) streak++;
+		for (let i = list.length - 2; i >= 0 && list[i].result === last.result; i--) streak++;
 		const playoffGames = playoff.WIN + playoff.LOSS + playoff.TIE;
 		return {
 			name, slug: slugifyOpponent(name),
@@ -81,7 +81,7 @@ export function computeHeadToHead(rows) {
 			playoffGames,
 			playoffRecord: playoffGames ? rec(playoff.WIN, playoff.LOSS, playoff.TIE) : null,
 			first: info(list[0]), last: info(last),
-			streak: { result: last['Packers Win'], count: streak },
+			streak: { result: last.result, count: streak },
 			biggestWin,
 		};
 	}).sort((a, b) => b.games - a.games || (a.name < b.name ? -1 : 1));

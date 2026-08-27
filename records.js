@@ -1,11 +1,11 @@
 // Records & Superlatives page: computes superlatives from the games CSV
 // (records-core.js, shared with the server) and renders one shareable card each.
 import { SITE } from './site.js';
-import { parseGamesCsv, computeSuperlatives, recordsCopy, formatDate, RECORD_SLUGS, esc } from './records-core.js';
+import { parseGames, computeSuperlatives, recordsCopy, formatDate, RECORD_SLUGS, esc } from './records-core.js';
 import { shareButtonsHtml, wireShareRow } from './share-core.js';
 
 const yearLink = (yr) => `<a href="/${yr}">${yr}</a>`;
-const gameFlag = (g) => (g.superbowl ? ' · Super Bowl' : g.playoff ? ' · Playoffs' : '');
+const gameFlag = (g) => (g.championship ? ' · Super Bowl' : g.playoff ? ' · Playoffs' : '');
 // Blowout entries link the date to the game's season page (a January playoff
 // game belongs to the prior year's season, so the season, not the date's year).
 const blowoutEntry = (g) => ({
@@ -105,7 +105,7 @@ async function init() {
 	try {
 		const res = await fetch('/data/packers_games.csv');
 		if (!res.ok) throw new Error(`CSV fetch failed: ${res.status}`);
-		const data = computeSuperlatives(parseGamesCsv(await res.text()));
+		const data = computeSuperlatives(parseGames(await res.text()));
 		document.getElementById('records-subtitle').textContent =
 			`Green Bay Packers · ${data.seasonRange.first}–${data.seasonRange.last}`;
 		grid.innerHTML = CARDS.map((c) => cardHtml(c, data)).join('');

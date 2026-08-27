@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { computeSeasonHistory, computeSuperlatives, parseGamesCsv, recordsCopy } from '../records-core.js'
+import { computeSeasonHistory, computeSuperlatives, parseGames, parseGamesCsv, recordsCopy } from '../records-core.js'
 import { canonicalOpponent, computeHeadToHead } from '../h2h-core.js'
 import { SITE } from '../site.js'
 
@@ -16,7 +16,19 @@ import { SITE } from '../site.js'
 // future can add to gets `>=` or `includes`. Equality is reserved for facts
 // that finished happening — 1929's record is not going to change.
 
-const rows = parseGamesCsv(readFileSync(new URL('../data/packers_games.csv', import.meta.url), 'utf8'))
+const CSV = readFileSync(new URL('../data/packers_games.csv', import.meta.url), 'utf8')
+
+// Two views of the same file, and the distinction is the point.
+//
+// `raw` is what the CSV literally contains, headers and all — including the
+// three columns whose names carry the club's own name. `rows` is what every
+// compute function actually reads, after parseGames maps those into result,
+// scoreFor, scoreAgainst and championship.
+//
+// Checking both means a header renamed upstream fails here rather than becoming
+// a column of undefined that quietly drops every game.
+const raw = parseGamesCsv(CSV)
+const rows = parseGames(CSV)
 const SETTLED = new Date(2030, 5, 1)
 const history = computeSeasonHistory(rows, { now: SETTLED })
 const supers = computeSuperlatives(rows, { now: SETTLED, top: 10 })
@@ -27,8 +39,17 @@ test('the file parses into a plausible number of games', () => {
 	assert.ok(rows.length > 1500, `only ${rows.length} rows parsed`)
 })
 
-test('every row has the columns the code reads', () => {
-	const required = ['date', 'season', 'regular_season', 'Opponent', 'Packers Win', 'packers_score', 'opponent_score']
+test('the file still has the columns parseGames maps from', () => {
+	// The raw header names, which the parser is the only thing allowed to know.
+	const required = ['date', 'season', 'regular_season', 'Opponent', 'Packers Win', 'packers_score', 'opponent_score', 'superbowl']
+	for (const key of required) {
+		const missing = raw.filter((r) => r[key] === undefined)
+		assert.equal(missing.length, 0, `${missing.length} rows missing ${key}`)
+	}
+})
+
+test('every parsed row has the fields the compute functions read', () => {
+	const required = ['date', 'season', 'regular_season', 'Opponent', 'result', 'scoreFor', 'scoreAgainst', 'championship']
 	for (const key of required) {
 		const missing = rows.filter((r) => r[key] === undefined)
 		assert.equal(missing.length, 0, `${missing.length} rows missing ${key}`)
@@ -40,7 +61,7 @@ test('every result is one the code knows how to count', () => {
 	// a typo upstream loses games rather than failing loudly. This is the only
 	// place that would notice.
 	const known = new Set(['WIN', 'LOSS', 'TIE', ''])
-	const strange = [...new Set(rows.map((r) => r['Packers Win']))].filter((v) => !known.has(v))
+	const strange = [...new Set(rows.map((r) => r.result))].filter((v) => !known.has(v))
 	assert.deepEqual(strange, [], `unexpected result values: ${strange.join(', ')}`)
 })
 
@@ -63,9 +84,9 @@ test('a game never predates the franchise or postdates the season it belongs to'
 })
 
 test('scores are non-negative integers', () => {
-	const played = rows.filter((r) => r['Packers Win'] !== '')
+	const played = rows.filter((r) => r.result !== '')
 	for (const r of played) {
-		for (const key of ['packers_score', 'opponent_score']) {
+		for (const key of ['scoreFor', 'scoreAgainst']) {
 			assert.match(r[key], /^\d+$/, `${r.date} has ${key}="${r[key]}"`)
 		}
 	}
@@ -74,14 +95,14 @@ test('scores are non-negative integers', () => {
 test('the result column agrees with the scores', () => {
 	// The two are stored separately, so they can disagree — and a WIN with a
 	// lower score would show a wrong record on the front page.
-	const played = rows.filter((r) => ['WIN', 'LOSS', 'TIE'].includes(r['Packers Win']))
+	const played = rows.filter((r) => ['WIN', 'LOSS', 'TIE'].includes(r.result))
 	const wrong = played.filter((r) => {
-		const pf = parseInt(r.packers_score, 10)
-		const pa = parseInt(r.opponent_score, 10)
+		const pf = parseInt(r.scoreFor, 10)
+		const pa = parseInt(r.scoreAgainst, 10)
 		const implied = pf > pa ? 'WIN' : pf < pa ? 'LOSS' : 'TIE'
-		return implied !== r['Packers Win']
+		return implied !== r.result
 	})
-	assert.deepEqual(wrong.map((r) => `${r.date} ${r['Packers Win']} ${r.packers_score}-${r.opponent_score}`), [])
+	assert.deepEqual(wrong.map((r) => `${r.date} ${r.result} ${r.scoreFor}-${r.scoreAgainst}`), [])
 })
 
 test('seasons are contiguous from the first to the last', () => {
@@ -108,7 +129,7 @@ test('the championship seasons the code can identify include the known ones', ()
 })
 
 test('the four Super Bowl wins are flagged and nothing before 1966 is', () => {
-	const superbowls = history.filter((s) => s.superbowl).map((s) => s.season)
+	const superbowls = history.filter((s) => s.championship).map((s) => s.season)
 	assert.deepEqual(superbowls.filter((y) => y <= 2025), [1966, 1967, 1996, 2010])
 })
 
@@ -163,7 +184,7 @@ test('no aliased franchise name survives into the output', () => {
 test('head-to-head games add up to the games actually played', () => {
 	const { opponents } = computeHeadToHead(rows)
 	const counted = opponents.reduce((n, o) => n + o.games, 0)
-	const played = rows.filter((r) => ['WIN', 'LOSS', 'TIE'].includes(r['Packers Win'])).length
+	const played = rows.filter((r) => ['WIN', 'LOSS', 'TIE'].includes(r.result)).length
 	assert.equal(counted, played, 'games were lost or double-counted in the fold')
 })
 
