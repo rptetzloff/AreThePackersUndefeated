@@ -172,7 +172,28 @@ Extract in this order, smallest risk first:
    offers, and a test now documents the consequence rather than leaving it to be
    discovered: the window does not wrap around the end of the year, so on 1
    January nothing from late December is a candidate.
-3. **The streak banner text** — `updateStreakBanner` (main.js:1226, 62 lines).
+3. ~~**The streak banner text**~~ Done. `streakBannerHtml` in `records-core.js`,
+   13 tests. `updateStreakBanner` 62 lines to 9, and it now only sets innerHTML.
+
+   **It surfaced a copy bug worth deciding on.** The opening run counts wins and
+   stops at anything else, so a tie ends it — and the sentence then calls the
+   tie a loss. 1929 reads "undefeated for 10 games (67 days) to start the season
+   before first loss", when game 11 was a 0-0 draw. The records page calls the
+   same season undefeated, because `site.js` names a lossless season
+   `undefeated` rather than `perfect` so that ties do not disqualify it.
+
+   Ending the *streak* at a tie is defensible under most record-book
+   conventions. Calling the tie a loss is not, on a site whose whole premise is
+   that the distinction matters. Left unchanged and pinned by a test, because it
+   is a copy decision rather than a refactor.
+
+   Three candidate wordings: "before first defeat" is wrong for the same reason;
+   "before first non-win" is accurate and ugly; "before the run ended" is
+   accurate and says nothing about what ended it. A fourth option is to let ties
+   extend the run, which would make 1929 read "undefeated for 12 games" and
+   agree with the records page — but that changes a number the site has shown
+   for years, and `bestStarts` in `computeSuperlatives` would have to change
+   with it or the two pages would disagree again.
 
 The largest method, `createGameItem` (main.js:798, 213 lines), is left for last
 on purpose: it renders the live ESPN path, which has no fixtures and no tests at
