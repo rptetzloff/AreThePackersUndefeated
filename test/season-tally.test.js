@@ -108,3 +108,24 @@ test('the real 1929 and 2010 seasons come out as the site shows them', () => {
 	assert.deepEqual(y2010.postseason, { w: 4, l: 0, t: 0 })
 	assert.equal(y2010.championshipName, 'Super Bowl XLV')
 })
+
+test('the championship test is the series rule, which a one-game final satisfies', () => {
+	// Written to match the baseball repo, where a World Series is a best-of-seven
+	// and winning one game in it is not winning it. A Super Bowl is one game, so
+	// the same test gives the obvious answer and both sites run this unchanged.
+	const won = [
+		...season(2010, 'WW'),
+		game({ date: '2011-02-06', season: 2010, regular: false, result: 'WIN', championship: 'xlv' }),
+	]
+	assert.equal(seasonTally(won).championshipName, 'Super Bowl XLV')
+
+	// And the rule a football-only implementation would get wrong if a final
+	// ever became a series: one win inside a losing series is not a title.
+	const series = [
+		...season(2010, 'WW'),
+		game({ date: '2011-02-06', season: 2010, regular: false, result: 'WIN', championship: 'xlv' }),
+		game({ date: '2011-02-07', season: 2010, regular: false, result: 'LOSS', championship: 'xlv' }),
+		game({ date: '2011-02-08', season: 2010, regular: false, result: 'LOSS', championship: 'xlv' }),
+	]
+	assert.equal(seasonTally(series).championshipName, null)
+})
