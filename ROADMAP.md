@@ -207,9 +207,32 @@ refactor's clothes, on the least-tested file in the repo.
 **A render harness is complementary, not an alternative.** Extraction makes the
 logic testable. It does nothing about "the container has no definite width, so
 the grid collapses to one column" — and this month produced exactly one bug of
-each kind. A headless-render test would cover the second, but it needs a browser
-in CI, which is a real cost and a separate decision. The manual version is
-already in the house rules and already earning its place.
+each kind.
+
+~~The manual version is already in the house rules.~~ It is now
+`scripts/render-check.mjs`: `npm run render:capture .render/before`, switch
+branch, capture again, `npm run render:diff`. No dependencies, uses the Chrome
+already installed. It compares the DOM of eight pages and screenshots of three,
+and refuses to report a result when the comparison would be meaningless.
+
+Validated against the bug it was built for: reintroducing the missing
+`width: 100%` on `.records-container` is reported as **PIXELS only** on exactly
+the three pages that use that class, with their markup byte-identical — which is
+the signature of a CSS-only regression. Two captures of the same build differ on
+nothing.
+
+Its four guards are the four ways the manual version was got wrong in one
+afternoon, each producing a green result that meant nothing: comparing a build
+against itself, comparing two pages that both rendered nothing, comparing a
+panel that picks at random, and generalising screenshot reproducibility from a
+single page. Each has a test.
+
+**What it does not do.** It is not in CI, and putting it there means a browser in
+CI — still a real cost and still a separate decision. Screenshots are
+reproducible only on the machine that took them, so there is no committed
+baseline and there cannot be one without pinning fonts and rendering. Five of the
+eight pages are compared by DOM only, because they paint a live clock, so a
+CSS-only regression on a season page would still get through.
 
 Open question: whether the extracted core is shared between the two sites
 immediately or lands per-repo first. Sharing it is the point, but every previous

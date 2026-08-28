@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "start": "node server.js",
     "update-data": "node update-data.js",
+    "render:capture": "node scripts/render-check.mjs capture",
+    "render:diff": "node scripts/render-check.mjs diff",
     "test": "node --test"
   },
   "dependencies": {
