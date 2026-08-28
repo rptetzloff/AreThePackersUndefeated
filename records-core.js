@@ -385,6 +385,67 @@ export function seasonTally(rows, site = SITE) {
 	};
 }
 
+/** Games played within `windowDays` of a given month and day, in any season.
+ *
+ *  `bySeason` is the season-keyed map main.js already builds. `month` is
+ *  0-based, matching Date#getMonth, because the caller gets it from a Date.
+ *
+ *  The proximity test is `month * 31 + day`, which is not a date calculation and
+ *  is kept because changing it would change which games the page offers. Two
+ *  consequences worth knowing rather than discovering: it does not wrap around
+ *  the end of the year, so on 1 January nothing from late December is a
+ *  candidate; and because every month is treated as 31 days long, the window
+ *  narrows slightly across the boundary of a short month.
+ */
+export function onThisDayCandidates(bySeason, month, day, { windowDays = 3 } = {}) {
+	const target = month * 31 + day;
+	const out = [];
+	for (const [yr, games] of Object.entries(bySeason)) {
+		for (const g of games) {
+			if (!g.date) continue;
+			const d = localDate(g.date);
+			if (isNaN(d)) continue;
+			if (Math.abs((d.getMonth() * 31 + d.getDate()) - target) <= windowDays) {
+				out.push({ game: g, season: parseInt(yr, 10), date: d });
+			}
+		}
+	}
+	return out;
+}
+
+/** Narrow the candidates to seasons that have photographs, unless that would
+ *  leave nothing. A picture beats a scoreline, but an empty panel beats both. */
+export function onThisDayPool(candidates, photosBySeason) {
+	const withPhotos = candidates.filter((c) => photosBySeason[c.season]);
+	return withPhotos.length > 0 ? withPhotos : candidates;
+}
+
+/** The display values for one candidate: everything the panel shows that is not
+ *  markup. Extracted from _renderOnThisDay, which derived these inline and then
+ *  built 20 lines of HTML around them.
+ *
+ *  The championship label is a game *type*, so unlike seasonTally's
+ *  championshipName it is set for a final that was lost as well as won.
+ */
+export function onThisDayView({ game, season, date }, site = SITE) {
+	const result = game.result;
+	const scoreFor = game.scoreFor;
+	const scoreAgainst = game.scoreAgainst;
+	const isChampionship = Boolean(game.championship && game.championship !== '');
+	const isPlayoff = game.playoff === '1' || game.playoff === 'true';
+	return {
+		season,
+		opponent: game.Opponent || game.opponent || 'Unknown',
+		resultClass: result === 'WIN' ? 'win' : result === 'LOSS' ? 'loss' : 'tie',
+		resultLabel: result === 'WIN' ? 'W' : result === 'LOSS' ? 'L' : 'T',
+		// Both scores must be present. They arrive as strings, so '0' is truthy
+		// and a shutout still shows its score; an unplayed game shows none.
+		scoreText: scoreFor && scoreAgainst ? `${scoreFor}–${scoreAgainst}` : '',
+		gameTypeLabel: isChampionship ? site.championship : isPlayoff ? 'Playoff' : 'Regular Season',
+		dateStr: date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
+	};
+}
+
 // Meta copy for the /history page, shared by server OG meta and client share.
 //
 // `site` is the vocabulary this deployment uses — see site.js. It is a
