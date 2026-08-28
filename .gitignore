@@ -1,2 +1,7 @@
 node_modules/
 .env
+
+# Render-check captures: two builds' worth of DOM dumps and screenshots, taken
+# minutes apart and compared, then thrown away. Never committed — the PNGs are
+# only reproducible on the machine that took them.
+.render/
