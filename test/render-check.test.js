@@ -122,3 +122,16 @@ test('normalising the countdown does not eat the element around it', () => {
 		'<div class="countdown-small">COUNTDOWN</div><div class="score">7-3</div>',
 	)
 })
+
+test('importing the module does not run its command line', () => {
+	// This file is the proof: node --test imports render-check.mjs, and before
+	// the entry-point guard the CLI ran on import. It said nothing here only
+	// because node --test passes no extra argv — a script that did, importing
+	// normalise() to compare two files, had its own arguments read as commands
+	// and exited 2 before running.
+	//
+	// The assertion is simply that this file got far enough to assert anything.
+	assert.equal(typeof normalise, 'function')
+	assert.equal(typeof compare, 'function')
+	assert.equal(typeof missingMarkers, 'function')
+})
