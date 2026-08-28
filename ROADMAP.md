@@ -92,8 +92,22 @@ below.
 shared core has to be told.** That's the actual deliverable, more than either
 file.
 
-### Neutral row keys, with a team selector
-The blocker for a shared core: the row keys embed the team name.
+### ~~Neutral row keys~~ — done. The team selector is not.
+The rename shipped in August 2026. The selector below has not, so this entry
+stays here rather than moving to Done.
+
+**It shipped with a regression, and the regression is the useful part.** The
+commit switched `main.js` and `lib/seasons.js` onto the normalised parser and
+left fourteen field reads on the old names. Each returned `undefined` rather
+than throwing, so every past season rendered a 0-0 record and a schedule of 0-0
+ties, on production, through two release PRs and a green suite of 118 tests. The
+commit message asserted that "one function owns the CSV's own names" — which was
+false when written. `test/row-keys.test.js` now asserts it instead.
+
+Read the entry below on `main.js` before doing the team-selector half: the same
+file will be in the way, for the same reason.
+
+The blocker for a shared core was that the row keys embed the team name.
 
 | Now | Shared |
 |---|---|
@@ -112,6 +126,58 @@ carries `BREWERS_IDS` and filters league-wide rows by team id; Packers' CSV has
 no team ids at all and is pre-flattened to one perspective. **Brewers' shape
 generalises to any franchise and Packers' cannot.** Moving this repo onto a
 league-wide feed with team ids is the same work as the rename.
+
+### Break up `main.js`
+Not because it is long. Because it is the only place bugs have shipped from.
+
+| | Packers | Brewers |
+|---|---|---|
+| lines | 1,455 | 3,164 |
+| functions | 74 | 173 |
+| DOM references | 146 | 276 |
+
+Three times the next-largest file in each repo, and the least covered. Both of
+this month's production bugs lived here or in its server-side twin, and neither
+was reachable from `node --test`: `main.js` fetches its own CSV in the browser,
+and `lib/seasons.js` reads the file at import and calls ESPN. A green suite says
+nothing about either.
+
+The pattern already exists in both repos. Of the five `*-core.js` modules —
+`records-core`, `h2h-core`, `coaches-core`, `share-core`, and `boxscore-core` on
+the baseball side — four are entirely DOM-free and well covered. Only
+`share-core` touches the DOM, deliberately. `main.js` is simply the part that
+never got the treatment.
+
+Extract in this order, smallest risk first:
+
+1. **The season tally.** Wins, losses, ties, postseason record, championship
+   detection — inline in `processCsvSeasonData` (main.js:282, 56 lines), which
+   tallies and renders in one pass. This is exactly where the 0-0 bug lived. It
+   is pure given rows, and `computeSeasonHistory` in `records-core.js` already
+   does most of it, so this is likely deletion rather than extraction.
+2. **On-this-day selection.** Choosing the game from the pool, inside
+   `_renderOnThisDay` (main.js:1151, 56 lines) alongside its DOM building.
+3. **The streak banner text** — `updateStreakBanner` (main.js:1226, 62 lines).
+
+The largest method, `createGameItem` (main.js:798, 213 lines), is left for last
+on purpose: it renders the live ESPN path, which has no fixtures and no tests at
+all, so it is the one place where "extract, don't rewrite" is hardest to honour
+and easiest to get wrong.
+
+Do not rewrite it. Extraction keeps behaviour identical and is verifiable by
+rendering the page before and after; a rewrite is a behaviour change wearing a
+refactor's clothes, on the least-tested file in the repo.
+
+**A render harness is complementary, not an alternative.** Extraction makes the
+logic testable. It does nothing about "the container has no definite width, so
+the grid collapses to one column" — and this month produced exactly one bug of
+each kind. A headless-render test would cover the second, but it needs a browser
+in CI, which is a real cost and a separate decision. The manual version is
+already in the house rules and already earning its place.
+
+Open question: whether the extracted core is shared between the two sites
+immediately or lands per-repo first. Sharing it is the point, but every previous
+attempt to share before both sides had tests went badly.
 
 ### Design tokens
 282 hex literals into roughly fifteen custom properties, per repo. Independently
