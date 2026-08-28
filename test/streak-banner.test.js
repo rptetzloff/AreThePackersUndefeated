@@ -97,3 +97,18 @@ test('days are singular at one, on the branch that can reach it', () => {
 	]
 	assert.match(streakBannerHtml(games, { isPastSeason: false }), /\(1 day\)/)
 })
+
+test('a one-day gap would read as a day, though this sport cannot produce one', () => {
+	// Unreachable here — a weekly sport has no one-day gap between the opener
+	// and the first defeat — and asserted anyway, because the same function runs
+	// on the baseball site, where it rendered "1 days" on a live page. The point
+	// of the two files agreeing is that a fix on one is a fix on both.
+	const games = [
+		{ result: 'WIN', date: new Date(2011, 8, 11) },
+		{ result: 'LOSS', date: new Date(2011, 8, 12) },
+	]
+	assert.equal(
+		streakBannerHtml(games, { isPastSeason: true }),
+		'Undefeated for <strong>1 game</strong> (1 day) to start the season before first loss',
+	)
+})
