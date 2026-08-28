@@ -327,6 +327,184 @@ export function computeSeasonHistory(rows, { now = new Date(), playoffs = false 
 	});
 }
 
+/** The numbers a single season's page shows: the regular-season record, the
+ *  postseason record beside it, and the championship's name if it was won.
+ *
+ *  `rows` is one season's games as parseGames produces them.
+ *
+ *  Lifted out of main.js, where it sat inline in processCsvSeasonData and
+ *  tallied and rendered in one pass. That is exactly where every past season
+ *  came to render 0-0: the tally read column names the parser had stopped
+ *  producing, each yielded undefined rather than throwing, and no test could
+ *  reach it because main.js fetches its own CSV in a browser.
+ *
+ *  Deliberately not folded into computeSeasonHistory, which looks like it
+ *  already does this and does not. That one exposes no postseason record, only
+ *  a boolean for the championship rather than its name, and a different notion
+ *  of undefeated — see below.
+ */
+export function seasonTally(rows, site = SITE) {
+	let wins = 0, losses = 0, ties = 0;
+	let postWins = 0, postLosses = 0, postTies = 0;
+	let championshipName = null;
+
+	for (const g of rows) {
+		if (g.regular_season === '1') {
+			if (g.result === 'WIN') wins++;
+			else if (g.result === 'LOSS') losses++;
+			else if (g.result === 'TIE') ties++;
+		} else if (g.playoff === '1') {
+			if (g.result === 'WIN') postWins++;
+			else if (g.result === 'LOSS') postLosses++;
+			else if (g.result === 'TIE') postTies++;
+		}
+		// Last match wins, as it did inline: a season has one championship game,
+		// and reading the field off any other row would be a data fault.
+		if (g.championship && g.championship.trim() !== '' && g.result === 'WIN') {
+			championshipName = `${site.championship} ${g.championship.toUpperCase()}`;
+		}
+	}
+
+	return {
+		wins, losses, ties,
+		// A postseason of ties alone does not count as one. Preserved from the
+		// inline version rather than tidied: the only rows that could produce it
+		// are unplayed or malformed, and showing "0-0-1" for them would be worse
+		// than showing nothing.
+		postseason: (postWins > 0 || postLosses > 0)
+			? { w: postWins, l: postLosses, t: postTies }
+			: null,
+		championshipName,
+		// Undefeated *so far*, which is not computeSeasonHistory's `undefeated`.
+		// That one also requires the season to have finished, because the records
+		// page lists completed undefeated seasons. This one answers the question
+		// the site is named after, and a team can be answering yes to it in
+		// October. Merging the two would either announce a finished perfect
+		// season in week three, or refuse to call a team undefeated while it is.
+		undefeated: losses === 0 && wins > 0,
+	};
+}
+
+/** Games played within `windowDays` of a given month and day, in any season.
+ *
+ *  `bySeason` is the season-keyed map main.js already builds. `month` is
+ *  0-based, matching Date#getMonth, because the caller gets it from a Date.
+ *
+ *  The proximity test is `month * 31 + day`, which is not a date calculation and
+ *  is kept because changing it would change which games the page offers. Two
+ *  consequences worth knowing rather than discovering: it does not wrap around
+ *  the end of the year, so on 1 January nothing from late December is a
+ *  candidate; and because every month is treated as 31 days long, the window
+ *  narrows slightly across the boundary of a short month.
+ */
+export function onThisDayCandidates(bySeason, month, day, { windowDays = 3 } = {}) {
+	const target = month * 31 + day;
+	const out = [];
+	for (const [yr, games] of Object.entries(bySeason)) {
+		for (const g of games) {
+			if (!g.date) continue;
+			const d = localDate(g.date);
+			if (isNaN(d)) continue;
+			if (Math.abs((d.getMonth() * 31 + d.getDate()) - target) <= windowDays) {
+				out.push({ game: g, season: parseInt(yr, 10), date: d });
+			}
+		}
+	}
+	return out;
+}
+
+/** Narrow the candidates to seasons that have photographs, unless that would
+ *  leave nothing. A picture beats a scoreline, but an empty panel beats both. */
+export function onThisDayPool(candidates, photosBySeason) {
+	const withPhotos = candidates.filter((c) => photosBySeason[c.season]);
+	return withPhotos.length > 0 ? withPhotos : candidates;
+}
+
+/** The display values for one candidate: everything the panel shows that is not
+ *  markup. Extracted from _renderOnThisDay, which derived these inline and then
+ *  built 20 lines of HTML around them.
+ *
+ *  The championship label is a game *type*, so unlike seasonTally's
+ *  championshipName it is set for a final that was lost as well as won.
+ */
+export function onThisDayView({ game, season, date }, site = SITE) {
+	const result = game.result;
+	const scoreFor = game.scoreFor;
+	const scoreAgainst = game.scoreAgainst;
+	const isChampionship = Boolean(game.championship && game.championship !== '');
+	const isPlayoff = game.playoff === '1' || game.playoff === 'true';
+	return {
+		season,
+		opponent: game.Opponent || game.opponent || 'Unknown',
+		resultClass: result === 'WIN' ? 'win' : result === 'LOSS' ? 'loss' : 'tie',
+		resultLabel: result === 'WIN' ? 'W' : result === 'LOSS' ? 'L' : 'T',
+		// Both scores must be present. They arrive as strings, so '0' is truthy
+		// and a shutout still shows its score; an unplayed game shows none.
+		scoreText: scoreFor && scoreAgainst ? `${scoreFor}–${scoreAgainst}` : '',
+		gameTypeLabel: isChampionship ? site.championship : isPlayoff ? 'Playoff' : 'Regular Season',
+		dateStr: date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
+	};
+}
+
+/** The streak banner's sentence, or null when there is nothing to say.
+ *
+ *  `completedGames` is [{ result, date }] for one season's regular-season games
+ *  that have been played. Returns HTML because the six variants differ in where
+ *  the emphasis falls, and splitting them into data plus a template made both
+ *  halves harder to read than the sentences are.
+ *
+ *  Extracted from main.js unchanged, including the behaviour described next,
+ *  which is worth a decision rather than a silent fix.
+ *
+ *  **A tie ends the opening run, and the sentence then calls it a loss.** The
+ *  loop counts WIN and stops on anything else, so 1929 — 12-0-1, the season this
+ *  site's front page exists to celebrate — reports "undefeated for 10 games
+ *  before first loss", when what happened in game 11 was a tie. The records page
+ *  agrees on the number and disagrees on the word: it lists 1929 as an
+ *  undefeated season, because site.js says a lossless season is `undefeated`
+ *  rather than `perfect` precisely so that ties do not disqualify it.
+ *
+ *  Both readings are defensible for the *streak* — a run of wins is broken by a
+ *  draw under most record-book conventions — but "before first loss" is not
+ *  defensible as a description of a tie. Changing it is a copy decision, so it
+ *  is left alone here and pinned by a test.
+ */
+export function streakBannerHtml(completedGames, { isPastSeason = false, site = SITE } = {}) {
+	if (completedGames.length === 0) return null;
+	const sorted = [...completedGames].sort((a, b) => a.date - b.date);
+
+	// Both branches computed these identically; the duplication went with them.
+	let openingStreak = 0;
+	let firstLoss = null;
+	for (const g of sorted) {
+		if (g.result === 'WIN') openingStreak++;
+		else { firstLoss = g; break; }
+	}
+
+	const plural = (n, noun) => (n === 1 ? `1 ${noun}` : `${n} ${noun}s`);
+	const daysToLoss = () =>
+		Math.round((firstLoss.date - sorted[0].date) / (1000 * 60 * 60 * 24));
+
+	if (isPastSeason) {
+		if (!firstLoss) return `Finished the regular season undefeated &mdash; <strong>${openingStreak}-0</strong>`;
+		if (openingStreak === 0) return `Lost the opener &mdash; undefeated for <strong>0 games</strong> to start the season`;
+		// No singular for days on this branch, unlike the one below. Preserved:
+		// a one-day gap between the opener and the first defeat cannot happen in
+		// a sport that plays weekly, so the wording has never been reachable.
+		return `Undefeated for <strong>${plural(openingStreak, 'game')}</strong> (${daysToLoss()} days) to start the season before first loss`;
+	}
+
+	let winStreak = 0;
+	for (let i = sorted.length - 1; i >= 0; i--) {
+		if (sorted[i].result === 'WIN') winStreak++;
+		else break;
+	}
+
+	if (!firstLoss) return `Undefeated to start the season &mdash; <strong>${openingStreak}</strong>-game win streak`;
+	if (openingStreak === 0) return `Lost the opener. Currently on a <strong>${winStreak}-game</strong> win streak.`;
+	return `The ${site.team} started the season undefeated for <strong>${plural(openingStreak, 'game')}</strong> (${plural(daysToLoss(), 'day')}). Currently on a <strong>${winStreak}-game</strong> win streak.`;
+}
+
 // Meta copy for the /history page, shared by server OG meta and client share.
 //
 // `site` is the vocabulary this deployment uses — see site.js. It is a

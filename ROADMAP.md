@@ -150,14 +150,50 @@ never got the treatment.
 
 Extract in this order, smallest risk first:
 
-1. **The season tally.** Wins, losses, ties, postseason record, championship
-   detection — inline in `processCsvSeasonData` (main.js:282, 56 lines), which
-   tallies and renders in one pass. This is exactly where the 0-0 bug lived. It
-   is pure given rows, and `computeSeasonHistory` in `records-core.js` already
-   does most of it, so this is likely deletion rather than extraction.
-2. **On-this-day selection.** Choosing the game from the pool, inside
-   `_renderOnThisDay` (main.js:1151, 56 lines) alongside its DOM building.
-3. **The streak banner text** — `updateStreakBanner` (main.js:1226, 62 lines).
+1. ~~**The season tally.**~~ Done. `seasonTally` in `records-core.js`, 11 tests,
+   `processCsvSeasonData` down from 56 lines to 30 and now only renders.
+
+   This entry predicted it would be "likely deletion rather than extraction,
+   since `computeSeasonHistory` already does most of it." That was wrong, and
+   the reason is worth keeping. `computeSeasonHistory` exposes no postseason
+   record, gives a boolean for the championship rather than its name, and means
+   something different by `undefeated` — it also requires the season to have
+   finished, because the records page lists completed undefeated seasons, while
+   the front page answers a question a team can say yes to in October. Folding
+   one into the other would either announce a perfect season in week three or
+   refuse to call a team undefeated while it is. A test now pins that
+   difference so a later merge has to fail it first.
+2. ~~**On-this-day selection.**~~ Done. `onThisDayCandidates`, `onThisDayPool`
+   and `onThisDayView` in `records-core.js`, 15 tests. `buildOnThisDay` 26 lines
+   to 15, `_renderOnThisDay` 56 to 45; both now only touch the DOM.
+
+   The ±3 day proximity test is `month * 31 + day`, which is not a date
+   calculation. It is kept because changing it changes which games the page
+   offers, and a test now documents the consequence rather than leaving it to be
+   discovered: the window does not wrap around the end of the year, so on 1
+   January nothing from late December is a candidate.
+3. ~~**The streak banner text**~~ Done. `streakBannerHtml` in `records-core.js`,
+   13 tests. `updateStreakBanner` 62 lines to 9, and it now only sets innerHTML.
+
+   **It surfaced a copy bug worth deciding on.** The opening run counts wins and
+   stops at anything else, so a tie ends it — and the sentence then calls the
+   tie a loss. 1929 reads "undefeated for 10 games (67 days) to start the season
+   before first loss", when game 11 was a 0-0 draw. The records page calls the
+   same season undefeated, because `site.js` names a lossless season
+   `undefeated` rather than `perfect` so that ties do not disqualify it.
+
+   Ending the *streak* at a tie is defensible under most record-book
+   conventions. Calling the tie a loss is not, on a site whose whole premise is
+   that the distinction matters. Left unchanged and pinned by a test, because it
+   is a copy decision rather than a refactor.
+
+   Three candidate wordings: "before first defeat" is wrong for the same reason;
+   "before first non-win" is accurate and ugly; "before the run ended" is
+   accurate and says nothing about what ended it. A fourth option is to let ties
+   extend the run, which would make 1929 read "undefeated for 12 games" and
+   agree with the records page — but that changes a number the site has shown
+   for years, and `bestStarts` in `computeSuperlatives` would have to change
+   with it or the two pages would disagree again.
 
 The largest method, `createGameItem` (main.js:798, 213 lines), is left for last
 on purpose: it renders the live ESPN path, which has no fixtures and no tests at

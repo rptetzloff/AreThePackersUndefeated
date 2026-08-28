@@ -1,4 +1,5 @@
-        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate } from './records-core.js';
+        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml } from './records-core.js';
+import { SITE } from './site.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
         import { buildChartSvg } from './history-chart.js';
         import { intentUrls, copyText, flashCopied } from './share-core.js';
@@ -292,38 +293,12 @@ processCsvSeasonData(season) {
 
  document.getElementById('schedule-title').innerHTML = `<i class="mdi mdi-calendar-month"></i> ${season} Season Schedule`;
 
-        		// Tally regular season and playoff records from CSV
- let wins = 0, losses = 0, ties = 0;
- let postWins = 0, postLosses = 0, postTies = 0;
+        		// The tally lives in records-core so it can be tested; this method
+        		// renders. Both halves used to be here, which is how every past
+        		// season came to show 0-0 with nothing failing.
+ const { wins, losses, ties, postseason, championshipName, undefeated } = seasonTally(games);
 
- games.forEach(g => {
-     const result = g.result;
-     const isPlayoff = g.playoff === '1';
-     const isRegular = g.regular_season === '1';
-
-     if (isRegular) {
-        if (result === 'WIN') wins++;
-        else if (result === 'LOSS') losses++;
-        else if (result === 'TIE') ties++;
-    } else if (isPlayoff) {
-        if (result === 'WIN') postWins++;
-        else if (result === 'LOSS') postLosses++;
-        else if (result === 'TIE') postTies++;
-    }
-});
-
-        		// Check for Super Bowl win (the championship field is non-empty)
- let superBowlName = null;
- games.forEach(g => {
-     if (g.championship && g.championship.trim() !== '' && g.result === 'WIN') {
-        superBowlName = `Super Bowl ${g.championship.toUpperCase()}`;
-    }
-});
-
- const isUndefeated = losses === 0 && wins > 0;
- const postRecord = (postWins > 0 || postLosses > 0) ? { w: postWins, l: postLosses, t: postTies } : null;
-
- this.displayResult(isUndefeated, wins, losses, ties, true, superBowlName, postRecord, null);
+ this.displayResult(undefeated, wins, losses, ties, true, championshipName, postseason, null);
  this.displayCsvSchedule(games, season);
  this.showLastUpdated();
  this.setDataCredit(true);
@@ -1130,38 +1105,16 @@ buildOnThisDay() {
   const todayMonth = isNaN(today) ? new Date().getMonth() : today.getMonth();
   const todayDay = isNaN(today) ? new Date().getDate() : today.getDate();
 
-  const candidates = [];
-  for (const [yr, games] of Object.entries(this.csvBySeason)) {
-     for (const g of games) {
-        if (!g.date) continue;
-        const d = localDate(g.date);
-        if (isNaN(d)) continue;
-        const diff = Math.abs((d.getMonth() * 31 + d.getDate()) - (todayMonth * 31 + todayDay));
-        if (diff <= 3) candidates.push({ game: g, season: parseInt(yr), date: d });
-    }
-}
+  const candidates = onThisDayCandidates(this.csvBySeason, todayMonth, todayDay);
+  if (candidates.length === 0) { el.hidden = true; return; }
 
-if (candidates.length === 0) { el.hidden = true; return; }
-
-const withPhotos = candidates.filter(c => this.photosBySeason[c.season]);
-const pool = withPhotos.length > 0 ? withPhotos : candidates;
-this._renderOnThisDay(el, pool[Math.floor(Math.random() * pool.length)], pool);
+  const pool = onThisDayPool(candidates, this.photosBySeason);
+  this._renderOnThisDay(el, pool[Math.floor(Math.random() * pool.length)], pool);
 }
 
 _renderOnThisDay(el, pick, pool) {
-  const { game, season, date } = pick;
-  const result = game.result;
-  const opponent = game['Opponent'] || game['opponent'] || 'Unknown';
-  const packersScore = game.scoreFor;
-  const oppScore = game.scoreAgainst;
-  const isPlayoff = game['playoff'] === '1' || game['playoff'] === 'true';
-  const isSuperbowl = game.championship && game.championship !== '';
-
-  const resultClass = result === 'WIN' ? 'win' : result === 'LOSS' ? 'loss' : 'tie';
-  const resultLabel = result === 'WIN' ? 'W' : result === 'LOSS' ? 'L' : 'T';
-  const scoreText = packersScore && oppScore ? `${packersScore}–${oppScore}` : '';
-  const gameTypeLabel = isSuperbowl ? 'Super Bowl' : isPlayoff ? 'Playoff' : 'Regular Season';
-  const dateStr = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  const { season } = pick;
+  const { opponent, resultClass, resultLabel, scoreText, gameTypeLabel, dateStr } = onThisDayView(pick);
 
   const photos = this.photosBySeason[season] || [];
   const photo = photos.length ? photos[Math.floor(Math.random() * photos.length)] : null;
@@ -1173,7 +1126,7 @@ _renderOnThisDay(el, pick, pool) {
 
   el.innerHTML = `
         			<div class="otd-header">
-        				<span class="otd-label"><i class="mdi mdi-calendar-today"></i> On This Day in Packers History</span>
+        				<span class="otd-label"><i class="mdi mdi-calendar-today"></i> On This Day in ${SITE.team} History</span>
         				<span class="otd-actions">
         					${resetLink}
         					<button class="otd-refresh" id="otd-refresh" aria-label="Show another"><i class="mdi mdi-refresh"></i></button>
@@ -1226,64 +1179,11 @@ computeStreak(completedGames) {
 updateStreakBanner(completedGames, isPastSeason) {
   const el = document.getElementById('streak-banner');
   if (!el) return;
-  if (completedGames.length === 0) {
-     el.hidden = true;
-     return;
- }
- const sorted = [...completedGames].sort((a, b) => a.date - b.date);
-
- if (isPastSeason) {
-        			// Opening win streak: wins before the first loss
-     let openingStreak = 0;
-     let firstLoss = null;
-     for (const g of sorted) {
-        if (g.result === 'WIN') openingStreak++;
-        else { firstLoss = g; break; }
-    }
-    let html;
-    if (!firstLoss) {
-        html = `Finished the regular season undefeated &mdash; <strong>${openingStreak}-0</strong>`;
-    } else if (openingStreak === 0) {
-        html = `Lost the opener &mdash; undefeated for <strong>0 games</strong> to start the season`;
-    } else {
-        const firstGame = sorted[0];
-        const daysToLoss = Math.round((firstLoss.date - firstGame.date) / (1000 * 60 * 60 * 24));
-        const gamesText = openingStreak === 1 ? '1 game' : `${openingStreak} games`;
-        html = `Undefeated for <strong>${gamesText}</strong> (${daysToLoss} days) to start the season before first loss`;
-    }
-    el.innerHTML = html;
-    el.hidden = false;
-} else {
-        			// Current season: opening streak + active win streak
- let openingStreak = 0;
- let firstLoss = null;
- for (const g of sorted) {
-    if (g.result === 'WIN') openingStreak++;
-    else { firstLoss = g; break; }
-}
-let winStreak = 0;
-for (let i = sorted.length - 1; i >= 0; i--) {
-    if (sorted[i].result === 'WIN') winStreak++;
-    else break;
-}
-
-let html;
-if (!firstLoss) {
-    html = `Undefeated to start the season &mdash; <strong>${openingStreak}</strong>-game win streak`;
-} else if (openingStreak === 0) {
-    const streakText = winStreak === 1 ? '1-game' : `${winStreak}-game`;
-    html = `Lost the opener. Currently on a <strong>${streakText}</strong> win streak.`;
-} else {
-    const firstGame = sorted[0];
-    const daysToLoss = Math.round((firstLoss.date - firstGame.date) / (1000 * 60 * 60 * 24));
-    const gamesText = openingStreak === 1 ? '1 game' : `${openingStreak} games`;
-    const daysText = daysToLoss === 1 ? '1 day' : `${daysToLoss} days`;
-    const streakText = winStreak === 1 ? '1-game' : `${winStreak}-game`;
-    html = `The Packers started the season undefeated for <strong>${gamesText}</strong> (${daysText}). Currently on a <strong>${streakText}</strong> win streak.`;
-}
-el.innerHTML = html;
-el.hidden = false;
-}
+  // The six sentences live in records-core, where they are reachable by a test.
+  const html = streakBannerHtml(completedGames, { isPastSeason });
+  if (html === null) { el.hidden = true; return; }
+  el.innerHTML = html;
+  el.hidden = false;
 }
 
 updateLastUndefeated(currentSeasonWins, currentSeasonLosses) {
