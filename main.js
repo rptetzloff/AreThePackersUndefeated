@@ -1,4 +1,5 @@
-        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally } from './records-core.js';
+        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView } from './records-core.js';
+import { SITE } from './site.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
         import { buildChartSvg } from './history-chart.js';
         import { intentUrls, copyText, flashCopied } from './share-core.js';
@@ -1104,38 +1105,16 @@ buildOnThisDay() {
   const todayMonth = isNaN(today) ? new Date().getMonth() : today.getMonth();
   const todayDay = isNaN(today) ? new Date().getDate() : today.getDate();
 
-  const candidates = [];
-  for (const [yr, games] of Object.entries(this.csvBySeason)) {
-     for (const g of games) {
-        if (!g.date) continue;
-        const d = localDate(g.date);
-        if (isNaN(d)) continue;
-        const diff = Math.abs((d.getMonth() * 31 + d.getDate()) - (todayMonth * 31 + todayDay));
-        if (diff <= 3) candidates.push({ game: g, season: parseInt(yr), date: d });
-    }
-}
+  const candidates = onThisDayCandidates(this.csvBySeason, todayMonth, todayDay);
+  if (candidates.length === 0) { el.hidden = true; return; }
 
-if (candidates.length === 0) { el.hidden = true; return; }
-
-const withPhotos = candidates.filter(c => this.photosBySeason[c.season]);
-const pool = withPhotos.length > 0 ? withPhotos : candidates;
-this._renderOnThisDay(el, pool[Math.floor(Math.random() * pool.length)], pool);
+  const pool = onThisDayPool(candidates, this.photosBySeason);
+  this._renderOnThisDay(el, pool[Math.floor(Math.random() * pool.length)], pool);
 }
 
 _renderOnThisDay(el, pick, pool) {
-  const { game, season, date } = pick;
-  const result = game.result;
-  const opponent = game['Opponent'] || game['opponent'] || 'Unknown';
-  const packersScore = game.scoreFor;
-  const oppScore = game.scoreAgainst;
-  const isPlayoff = game['playoff'] === '1' || game['playoff'] === 'true';
-  const isSuperbowl = game.championship && game.championship !== '';
-
-  const resultClass = result === 'WIN' ? 'win' : result === 'LOSS' ? 'loss' : 'tie';
-  const resultLabel = result === 'WIN' ? 'W' : result === 'LOSS' ? 'L' : 'T';
-  const scoreText = packersScore && oppScore ? `${packersScore}–${oppScore}` : '';
-  const gameTypeLabel = isSuperbowl ? 'Super Bowl' : isPlayoff ? 'Playoff' : 'Regular Season';
-  const dateStr = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  const { season } = pick;
+  const { opponent, resultClass, resultLabel, scoreText, gameTypeLabel, dateStr } = onThisDayView(pick);
 
   const photos = this.photosBySeason[season] || [];
   const photo = photos.length ? photos[Math.floor(Math.random() * photos.length)] : null;
@@ -1147,7 +1126,7 @@ _renderOnThisDay(el, pick, pool) {
 
   el.innerHTML = `
         			<div class="otd-header">
-        				<span class="otd-label"><i class="mdi mdi-calendar-today"></i> On This Day in Packers History</span>
+        				<span class="otd-label"><i class="mdi mdi-calendar-today"></i> On This Day in ${SITE.team} History</span>
         				<span class="otd-actions">
         					${resetLink}
         					<button class="otd-refresh" id="otd-refresh" aria-label="Show another"><i class="mdi mdi-refresh"></i></button>

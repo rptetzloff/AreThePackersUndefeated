@@ -163,8 +163,15 @@ Extract in this order, smallest risk first:
    one into the other would either announce a perfect season in week three or
    refuse to call a team undefeated while it is. A test now pins that
    difference so a later merge has to fail it first.
-2. **On-this-day selection.** Choosing the game from the pool, inside
-   `_renderOnThisDay` (main.js:1151, 56 lines) alongside its DOM building.
+2. ~~**On-this-day selection.**~~ Done. `onThisDayCandidates`, `onThisDayPool`
+   and `onThisDayView` in `records-core.js`, 15 tests. `buildOnThisDay` 26 lines
+   to 15, `_renderOnThisDay` 56 to 45; both now only touch the DOM.
+
+   The ±3 day proximity test is `month * 31 + day`, which is not a date
+   calculation. It is kept because changing it changes which games the page
+   offers, and a test now documents the consequence rather than leaving it to be
+   discovered: the window does not wrap around the end of the year, so on 1
+   January nothing from late December is a candidate.
 3. **The streak banner text** — `updateStreakBanner` (main.js:1226, 62 lines).
 
 The largest method, `createGameItem` (main.js:798, 213 lines), is left for last
