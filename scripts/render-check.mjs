@@ -83,15 +83,23 @@ const PAGES = [
  *  at all. Hashed together into one fingerprint. */
 const SOURCES = ['/main.js', '/records-core.js', '/records.js', '/styles.css'];
 
-/** Strip the two things that differ between any two runs and mean nothing.
+/** Strip the things that differ between any two runs and mean nothing.
  *
  *  The cache-buster *must* differ whenever the JS changes — that is its job — so
  *  leaving it in would make every real comparison fail for the one reason that
- *  is never interesting. */
+ *  is never interesting.
+ *
+ *  The countdown to the next game is the same problem in the DOM rather than the
+ *  markup: it counts down. Two captures a minute apart read "2h 24m" and
+ *  "2h 23m", which was the one page still differing from itself after the other
+ *  guards were in. Found by comparing a build against itself and asking why,
+ *  rather than by assuming the remaining difference was real. */
 export function normalise(html) {
 	return html
 		.replace(/Last updated: [^<]*/g, 'Last updated: NORMALISED')
-		.replace(/\?v=[a-f0-9]+/g, '?v=NORMALISED');
+		.replace(/\?v=[a-f0-9]+/g, '?v=NORMALISED')
+		.replace(/(class="[^"]*countdown[^"]*"[^>]*>)[^<]*/g, '$1COUNTDOWN')
+		.replace(/(id="[^"]*countdown[^"]*"[^>]*>)[^<]*/g, '$1COUNTDOWN');
 }
 
 /** Which markers are missing from a page. Empty means it rendered. */

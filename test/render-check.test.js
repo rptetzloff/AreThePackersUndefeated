@@ -106,3 +106,19 @@ test('a page added or removed between captures is never counted as identical', (
 	assert.deepEqual(report.same, [])
 	assert.deepEqual(report.missing, ['/x'])
 })
+
+test('a live countdown is normalised away', () => {
+	// The one page still differing from itself after every other guard was in.
+	// Found by comparing a build against itself and asking why the remaining
+	// difference was there, rather than assuming it was real.
+	const a = normalise('<div class="countdown-small">⏰ 2h 24m</div>')
+	const b = normalise('<div class="countdown-small">⏰ 2h 23m</div>')
+	assert.equal(a, b)
+})
+
+test('normalising the countdown does not eat the element around it', () => {
+	assert.equal(
+		normalise('<div class="countdown-small">2h</div><div class="score">7-3</div>'),
+		'<div class="countdown-small">COUNTDOWN</div><div class="score">7-3</div>',
+	)
+})
