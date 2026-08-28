@@ -338,6 +338,15 @@ export function computeSeasonHistory(rows, { now = new Date(), playoffs = false 
  *  producing, each yielded undefined rather than throwing, and no test could
  *  reach it because main.js fetches its own CSV in a browser.
  *
+ *  The championship test is "more championship-round wins than losses", which
+ *  reads oddly for a sport whose final is a single game and is deliberate. The
+ *  baseball repo needs it, because a World Series is a best-of-seven and winning
+ *  one game in it is not winning it. Applied to a Super Bowl the same test gives
+ *  the obvious answer — a win is 1 > 0, a defeat is 0 > 1 — so the series rule is
+ *  the general one and the single-game rule a special case of it. Writing it
+ *  this way is what lets both sites run this function unchanged; the two bodies
+ *  now differ only in these comments.
+ *
  *  Deliberately not folded into computeSeasonHistory, which looks like it
  *  already does this and does not. That one exposes no postseason record, only
  *  a boolean for the championship rather than its name, and a different notion
@@ -346,7 +355,7 @@ export function computeSeasonHistory(rows, { now = new Date(), playoffs = false 
 export function seasonTally(rows, site = SITE) {
 	let wins = 0, losses = 0, ties = 0;
 	let postWins = 0, postLosses = 0, postTies = 0;
-	let championshipName = null;
+	let titleWins = 0, titleLosses = 0, titleName = null;
 
 	for (const g of rows) {
 		if (g.regular_season === '1') {
@@ -358,10 +367,10 @@ export function seasonTally(rows, site = SITE) {
 			else if (g.result === 'LOSS') postLosses++;
 			else if (g.result === 'TIE') postTies++;
 		}
-		// Last match wins, as it did inline: a season has one championship game,
-		// and reading the field off any other row would be a data fault.
-		if (g.championship && g.championship.trim() !== '' && g.result === 'WIN') {
-			championshipName = `${site.championship} ${g.championship.toUpperCase()}`;
+		if (g.championship && g.championship.trim() !== '') {
+			titleName = `${site.championship} ${g.championship.toUpperCase()}`;
+			if (g.result === 'WIN') titleWins++;
+			else if (g.result === 'LOSS') titleLosses++;
 		}
 	}
 
@@ -374,7 +383,7 @@ export function seasonTally(rows, site = SITE) {
 		postseason: (postWins > 0 || postLosses > 0)
 			? { w: postWins, l: postLosses, t: postTies }
 			: null,
-		championshipName,
+		championshipName: titleWins > titleLosses ? titleName : null,
 		// Undefeated *so far*, which is not computeSeasonHistory's `undefeated`.
 		// That one also requires the season to have finished, because the records
 		// page lists completed undefeated seasons. This one answers the question
