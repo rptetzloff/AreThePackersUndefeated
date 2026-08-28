@@ -497,10 +497,11 @@ export function streakBannerHtml(completedGames, { isPastSeason = false, site = 
 	if (isPastSeason) {
 		if (!firstLoss) return `Finished the regular season undefeated &mdash; <strong>${openingStreak}-0</strong>`;
 		if (openingStreak === 0) return `Lost the opener &mdash; undefeated for <strong>0 games</strong> to start the season`;
-		// No singular for days on this branch, unlike the one below. Preserved:
-		// a one-day gap between the opener and the first defeat cannot happen in
-		// a sport that plays weekly, so the wording has never been reachable.
-		return `Undefeated for <strong>${plural(openingStreak, 'game')}</strong> (${daysToLoss()} days) to start the season before first loss`;
+		// The day count is pluralised like the one below. It cannot read 1 in a
+		// sport that plays weekly, so this changes nothing here — but the same
+		// function runs on the baseball site, where it read "1 days" on a live
+		// page until this line was shared rather than merely copied.
+		return `Undefeated for <strong>${plural(openingStreak, 'game')}</strong> (${plural(daysToLoss(), 'day')}) to start the season before first loss`;
 	}
 
 	let winStreak = 0;
