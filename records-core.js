@@ -327,6 +327,64 @@ export function computeSeasonHistory(rows, { now = new Date(), playoffs = false 
 	});
 }
 
+/** The numbers a single season's page shows: the regular-season record, the
+ *  postseason record beside it, and the championship's name if it was won.
+ *
+ *  `rows` is one season's games as parseGames produces them.
+ *
+ *  Lifted out of main.js, where it sat inline in processCsvSeasonData and
+ *  tallied and rendered in one pass. That is exactly where every past season
+ *  came to render 0-0: the tally read column names the parser had stopped
+ *  producing, each yielded undefined rather than throwing, and no test could
+ *  reach it because main.js fetches its own CSV in a browser.
+ *
+ *  Deliberately not folded into computeSeasonHistory, which looks like it
+ *  already does this and does not. That one exposes no postseason record, only
+ *  a boolean for the championship rather than its name, and a different notion
+ *  of undefeated — see below.
+ */
+export function seasonTally(rows, site = SITE) {
+	let wins = 0, losses = 0, ties = 0;
+	let postWins = 0, postLosses = 0, postTies = 0;
+	let championshipName = null;
+
+	for (const g of rows) {
+		if (g.regular_season === '1') {
+			if (g.result === 'WIN') wins++;
+			else if (g.result === 'LOSS') losses++;
+			else if (g.result === 'TIE') ties++;
+		} else if (g.playoff === '1') {
+			if (g.result === 'WIN') postWins++;
+			else if (g.result === 'LOSS') postLosses++;
+			else if (g.result === 'TIE') postTies++;
+		}
+		// Last match wins, as it did inline: a season has one championship game,
+		// and reading the field off any other row would be a data fault.
+		if (g.championship && g.championship.trim() !== '' && g.result === 'WIN') {
+			championshipName = `${site.championship} ${g.championship.toUpperCase()}`;
+		}
+	}
+
+	return {
+		wins, losses, ties,
+		// A postseason of ties alone does not count as one. Preserved from the
+		// inline version rather than tidied: the only rows that could produce it
+		// are unplayed or malformed, and showing "0-0-1" for them would be worse
+		// than showing nothing.
+		postseason: (postWins > 0 || postLosses > 0)
+			? { w: postWins, l: postLosses, t: postTies }
+			: null,
+		championshipName,
+		// Undefeated *so far*, which is not computeSeasonHistory's `undefeated`.
+		// That one also requires the season to have finished, because the records
+		// page lists completed undefeated seasons. This one answers the question
+		// the site is named after, and a team can be answering yes to it in
+		// October. Merging the two would either announce a finished perfect
+		// season in week three, or refuse to call a team undefeated while it is.
+		undefeated: losses === 0 && wins > 0,
+	};
+}
+
 // Meta copy for the /history page, shared by server OG meta and client share.
 //
 // `site` is the vocabulary this deployment uses — see site.js. It is a
