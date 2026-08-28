@@ -150,11 +150,19 @@ never got the treatment.
 
 Extract in this order, smallest risk first:
 
-1. **The season tally.** Wins, losses, ties, postseason record, championship
-   detection — inline in `processCsvSeasonData` (main.js:282, 56 lines), which
-   tallies and renders in one pass. This is exactly where the 0-0 bug lived. It
-   is pure given rows, and `computeSeasonHistory` in `records-core.js` already
-   does most of it, so this is likely deletion rather than extraction.
+1. ~~**The season tally.**~~ Done. `seasonTally` in `records-core.js`, 11 tests,
+   `processCsvSeasonData` down from 56 lines to 30 and now only renders.
+
+   This entry predicted it would be "likely deletion rather than extraction,
+   since `computeSeasonHistory` already does most of it." That was wrong, and
+   the reason is worth keeping. `computeSeasonHistory` exposes no postseason
+   record, gives a boolean for the championship rather than its name, and means
+   something different by `undefeated` — it also requires the season to have
+   finished, because the records page lists completed undefeated seasons, while
+   the front page answers a question a team can say yes to in October. Folding
+   one into the other would either announce a perfect season in week three or
+   refuse to call a team undefeated while it is. A test now pins that
+   difference so a later merge has to fail it first.
 2. **On-this-day selection.** Choosing the game from the pool, inside
    `_renderOnThisDay` (main.js:1151, 56 lines) alongside its DOM building.
 3. **The streak banner text** — `updateStreakBanner` (main.js:1226, 62 lines).
