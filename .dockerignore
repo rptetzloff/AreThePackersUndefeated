@@ -1,0 +1,25 @@
+# What never belongs in the image. Everything else is copied, because the server
+# reads the HTML shells, the CSVs and lib/ at runtime and guessing wrong there
+# fails at request time on one route rather than at build time.
+
+.git
+.gitattributes
+.github
+node_modules
+
+# Test suite and its fixtures: 178 tests that run in CI and locally, never in
+# the container.
+test
+
+# Render-check captures. Screenshots reproducible only on the machine that took
+# them, and regenerated on demand.
+.render
+
+# Build tooling that produces committed artifacts rather than running in
+# production.
+vite.config.js
+vite.config.ts
+
+# Notes for people, not for the runtime.
+ROADMAP.md
+CLAUDE.md
