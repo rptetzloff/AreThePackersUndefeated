@@ -446,6 +446,65 @@ export function onThisDayView({ game, season, date }, site = SITE) {
 	};
 }
 
+/** The streak banner's sentence, or null when there is nothing to say.
+ *
+ *  `completedGames` is [{ result, date }] for one season's regular-season games
+ *  that have been played. Returns HTML because the six variants differ in where
+ *  the emphasis falls, and splitting them into data plus a template made both
+ *  halves harder to read than the sentences are.
+ *
+ *  Extracted from main.js unchanged, including the behaviour described next,
+ *  which is worth a decision rather than a silent fix.
+ *
+ *  **A tie ends the opening run, and the sentence then calls it a loss.** The
+ *  loop counts WIN and stops on anything else, so 1929 — 12-0-1, the season this
+ *  site's front page exists to celebrate — reports "undefeated for 10 games
+ *  before first loss", when what happened in game 11 was a tie. The records page
+ *  agrees on the number and disagrees on the word: it lists 1929 as an
+ *  undefeated season, because site.js says a lossless season is `undefeated`
+ *  rather than `perfect` precisely so that ties do not disqualify it.
+ *
+ *  Both readings are defensible for the *streak* — a run of wins is broken by a
+ *  draw under most record-book conventions — but "before first loss" is not
+ *  defensible as a description of a tie. Changing it is a copy decision, so it
+ *  is left alone here and pinned by a test.
+ */
+export function streakBannerHtml(completedGames, { isPastSeason = false, site = SITE } = {}) {
+	if (completedGames.length === 0) return null;
+	const sorted = [...completedGames].sort((a, b) => a.date - b.date);
+
+	// Both branches computed these identically; the duplication went with them.
+	let openingStreak = 0;
+	let firstLoss = null;
+	for (const g of sorted) {
+		if (g.result === 'WIN') openingStreak++;
+		else { firstLoss = g; break; }
+	}
+
+	const plural = (n, noun) => (n === 1 ? `1 ${noun}` : `${n} ${noun}s`);
+	const daysToLoss = () =>
+		Math.round((firstLoss.date - sorted[0].date) / (1000 * 60 * 60 * 24));
+
+	if (isPastSeason) {
+		if (!firstLoss) return `Finished the regular season undefeated &mdash; <strong>${openingStreak}-0</strong>`;
+		if (openingStreak === 0) return `Lost the opener &mdash; undefeated for <strong>0 games</strong> to start the season`;
+		// No singular for days on this branch, unlike the one below. Preserved:
+		// a one-day gap between the opener and the first defeat cannot happen in
+		// a sport that plays weekly, so the wording has never been reachable.
+		return `Undefeated for <strong>${plural(openingStreak, 'game')}</strong> (${daysToLoss()} days) to start the season before first loss`;
+	}
+
+	let winStreak = 0;
+	for (let i = sorted.length - 1; i >= 0; i--) {
+		if (sorted[i].result === 'WIN') winStreak++;
+		else break;
+	}
+
+	if (!firstLoss) return `Undefeated to start the season &mdash; <strong>${openingStreak}</strong>-game win streak`;
+	if (openingStreak === 0) return `Lost the opener. Currently on a <strong>${winStreak}-game</strong> win streak.`;
+	return `The ${site.team} started the season undefeated for <strong>${plural(openingStreak, 'game')}</strong> (${plural(daysToLoss(), 'day')}). Currently on a <strong>${winStreak}-game</strong> win streak.`;
+}
+
 // Meta copy for the /history page, shared by server OG meta and client share.
 //
 // `site` is the vocabulary this deployment uses — see site.js. It is a

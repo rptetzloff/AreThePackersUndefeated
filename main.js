@@ -1,4 +1,4 @@
-        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView } from './records-core.js';
+        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml } from './records-core.js';
 import { SITE } from './site.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
         import { buildChartSvg } from './history-chart.js';
@@ -1179,64 +1179,11 @@ computeStreak(completedGames) {
 updateStreakBanner(completedGames, isPastSeason) {
   const el = document.getElementById('streak-banner');
   if (!el) return;
-  if (completedGames.length === 0) {
-     el.hidden = true;
-     return;
- }
- const sorted = [...completedGames].sort((a, b) => a.date - b.date);
-
- if (isPastSeason) {
-        			// Opening win streak: wins before the first loss
-     let openingStreak = 0;
-     let firstLoss = null;
-     for (const g of sorted) {
-        if (g.result === 'WIN') openingStreak++;
-        else { firstLoss = g; break; }
-    }
-    let html;
-    if (!firstLoss) {
-        html = `Finished the regular season undefeated &mdash; <strong>${openingStreak}-0</strong>`;
-    } else if (openingStreak === 0) {
-        html = `Lost the opener &mdash; undefeated for <strong>0 games</strong> to start the season`;
-    } else {
-        const firstGame = sorted[0];
-        const daysToLoss = Math.round((firstLoss.date - firstGame.date) / (1000 * 60 * 60 * 24));
-        const gamesText = openingStreak === 1 ? '1 game' : `${openingStreak} games`;
-        html = `Undefeated for <strong>${gamesText}</strong> (${daysToLoss} days) to start the season before first loss`;
-    }
-    el.innerHTML = html;
-    el.hidden = false;
-} else {
-        			// Current season: opening streak + active win streak
- let openingStreak = 0;
- let firstLoss = null;
- for (const g of sorted) {
-    if (g.result === 'WIN') openingStreak++;
-    else { firstLoss = g; break; }
-}
-let winStreak = 0;
-for (let i = sorted.length - 1; i >= 0; i--) {
-    if (sorted[i].result === 'WIN') winStreak++;
-    else break;
-}
-
-let html;
-if (!firstLoss) {
-    html = `Undefeated to start the season &mdash; <strong>${openingStreak}</strong>-game win streak`;
-} else if (openingStreak === 0) {
-    const streakText = winStreak === 1 ? '1-game' : `${winStreak}-game`;
-    html = `Lost the opener. Currently on a <strong>${streakText}</strong> win streak.`;
-} else {
-    const firstGame = sorted[0];
-    const daysToLoss = Math.round((firstLoss.date - firstGame.date) / (1000 * 60 * 60 * 24));
-    const gamesText = openingStreak === 1 ? '1 game' : `${openingStreak} games`;
-    const daysText = daysToLoss === 1 ? '1 day' : `${daysToLoss} days`;
-    const streakText = winStreak === 1 ? '1-game' : `${winStreak}-game`;
-    html = `The Packers started the season undefeated for <strong>${gamesText}</strong> (${daysText}). Currently on a <strong>${streakText}</strong> win streak.`;
-}
-el.innerHTML = html;
-el.hidden = false;
-}
+  // The six sentences live in records-core, where they are reachable by a test.
+  const html = streakBannerHtml(completedGames, { isPastSeason });
+  if (html === null) { el.hidden = true; return; }
+  el.innerHTML = html;
+  el.hidden = false;
 }
 
 updateLastUndefeated(currentSeasonWins, currentSeasonLosses) {
