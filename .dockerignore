@@ -17,8 +17,6 @@ test
 
 # Build tooling that produces committed artifacts rather than running in
 # production.
-vite.config.js
-vite.config.ts
 
 # Notes for people, not for the runtime.
 ROADMAP.md
