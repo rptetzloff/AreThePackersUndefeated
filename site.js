@@ -135,6 +135,23 @@ export const SITE = {
 	 *  charmless. They are the exception and should stay few; anything that is
 	 *  really just a noun belongs above. */
 	copy: {
+		/** The answer before the first regular-season game has been played.
+		 *
+		 *  At 0-0 the site used to say NO, which is wrong in the plainest way:
+		 *  a team that has not played has not lost. But YES is hollow, and the
+		 *  guard producing NO — `losses === 0 && wins > 0` — exists so that an
+		 *  empty or future season does not claim an undefeated one.
+		 *
+		 *  So it gets its own answer rather than being forced into either. It
+		 *  lives here because it is the loudest team-specific string on the
+		 *  site, and the whole point of this file is that another club can host
+		 *  this code without editing any.
+		 *
+		 *  Reachable for a few weeks every year: once the schedule fills in,
+		 *  isOffseason stops returning true, and the first regular-season game
+		 *  is still to come.
+		 */
+		seasonNotStarted: 'GO PACK GO',
 		/** Shown only when the undefeated-seasons list comes back empty — which
 		 *  for this site it never does, because 1929 finished 12–0–1.
 		 *

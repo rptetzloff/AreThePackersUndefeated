@@ -1,5 +1,6 @@
         import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml } from './records-core.js';
 import { SITE } from './site.js';
+import { seasonVerdict } from './lib/season-state.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
         import { buildChartSvg } from './history-chart.js';
         import { intentUrls, copyText, flashCopied } from './share-core.js';
@@ -38,8 +39,8 @@ import { SITE } from './site.js';
         				if (this._isOffseason) {
         					this.displayOffseasonMessage();
         				} else if (this._lastResult) {
-        					const { isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord } = this._lastResult;
-        					this.displayResult(isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord);
+        					const { verdict, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord } = this._lastResult;
+        					this.displayResult(verdict, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord);
         				}
         			});
 
@@ -298,7 +299,7 @@ processCsvSeasonData(season) {
         		// season came to show 0-0 with nothing failing.
  const { wins, losses, ties, postseason, championshipName, undefeated } = seasonTally(games);
 
- this.displayResult(undefeated, wins, losses, ties, true, championshipName, postseason, null);
+ this.displayResult(seasonVerdict({ wins, losses, ties, isPastSeason: true }), wins, losses, ties, true, championshipName, postseason, null);
  this.displayCsvSchedule(games, season);
  this.showLastUpdated();
  this.setDataCredit(true);
@@ -564,8 +565,8 @@ createCsvGameItem(g, showH2h = false) {
         			if (packersScore > opponentScore) superBowlName = sbNote.headline;
         		});
 
-        		const isUndefeated = losses === 0 && wins > 0;
-        		this.displayResult(isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord);
+        		const verdict = seasonVerdict({ wins, losses, ties, isPastSeason });
+        		this.displayResult(verdict, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord);
         		this.displaySchedule(events, isPastSeason);
         		this.showLastUpdated();
         		this.setDataCredit(false);
@@ -631,16 +632,24 @@ createCsvGameItem(g, showH2h = false) {
         		return `<div class="emoji-row">${spans}</div>`;
         	}
 
-        	displayResult(isUndefeated, wins, losses, ties, isPastSeason = false, superBowlName = null, postRecord = null, preRecord = null) {
+        	displayResult(verdict, wins, losses, ties, isPastSeason = false, superBowlName = null, postRecord = null, preRecord = null) {
         		const answerEl = document.getElementById('answer');
         		const recordEl = document.getElementById('record');
 
-        		this._lastResult = { isUndefeated, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord };
+        		this._lastResult = { verdict, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord };
         		this._isOffseason = false;
 
         		const emojis = this.showEmojis;
 
-        		if (isUndefeated) {
+        		if (verdict === 'not-started') {
+        			// No games played and the season is not over: not YES, which
+        			// would be hollow, and emphatically not NO, which is what it
+        			// used to say about a team that had not lost.
+        			const footballHtml = emojis ? this.emojiRowHtml('🏈', 1) : '';
+        			answerEl.innerHTML = `${SITE.copy.seasonNotStarted}${footballHtml}`;
+        			answerEl.className = 'answer not-started';
+        			document.body.classList.remove('undefeated');
+        		} else if (verdict === 'undefeated') {
         			const cheeseHtml = emojis && wins > 0 ? this.emojiRowHtml('🧀', wins) : '';
         			const footballHtml = emojis && !isPastSeason ? this.emojiRowHtml('🏈', 1) : '';
         			answerEl.innerHTML = `${cheeseHtml}YES!!!${footballHtml}`;
@@ -1046,7 +1055,7 @@ getShareMessage() {
 
  if (!this._lastResult) return `Green Bay Packers ${season} season #GoPackGo`;
 
- const { isUndefeated, wins, losses, ties, superBowlName } = this._lastResult;
+ const { verdict, wins, losses, ties, superBowlName } = this._lastResult;
 
  if (superBowlName) {
      return `🏆 The ${season} Green Bay Packers won ${superBowlName.toUpperCase()}! #GoPackGo`;
@@ -1055,13 +1064,18 @@ getShareMessage() {
  const recordText = ties > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`;
 
  if (isPast) {
-     if (isUndefeated) {
+     if (verdict === 'undefeated') {
         return `🧀 The ${season} Green Bay Packers finished the regular season UNDEFEATED at ${recordText}! #GoPackGo`;
     } else {
         return `The ${season} Green Bay Packers finished ${recordText}. #GoPackGo`;
     }
 } else {
- if (isUndefeated) {
+ // A share of a season that has not started should say so rather than
+ // announcing a 0-0 record as though it were news.
+ if (verdict === 'not-started') {
+    return `🏈 ${SITE.copy.seasonNotStarted} — the ${season} Green Bay Packers season is almost here! #GoPackGo`;
+}
+ if (verdict === 'undefeated') {
     return `🧀 The Green Bay Packers are UNDEFEATED so far in ${season}! ${recordText} 🧀 #GoPackGo`;
 } else {
     return `The Green Bay Packers are ${recordText} so far in the ${season} season. #GoPackGo`;
