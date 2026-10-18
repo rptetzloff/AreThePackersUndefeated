@@ -18,10 +18,17 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
+    <!-- Three blocks: the answer and the season's story, the schedule panel,
+         and the notes. A phone stacks them in that order; from 1100px the
+         schedule panel takes a right-hand column the height of the screen. -->
+    <div class="container home-layout">
         <h1 id="site-title" class="site-title">Are the Packers Undefeated?</h1>
+        <div class="home-main">
         <div id="answer" class="answer loading">Loading...</div>
         <div id="record" class="record"></div>
+        <!-- The live game, else the next one, as its full card: right under
+             the answer, on a phone and in the left column on a desktop. -->
+        <div id="schedule-featured" class="schedule-featured" hidden></div>
         <a id="history-spark" class="history-spark" href="/history.html" aria-label="Franchise history, season by season" title="Franchise history, season by season"></a>
         <details id="streak-details" class="collapsible-section" open>
             <summary class="collapsible-summary">Streak</summary>
@@ -33,6 +40,9 @@
             <div id="on-this-day" class="on-this-day" hidden></div>
         </details>
 
+        </div>
+
+        <aside class="home-schedule" aria-label="Schedule">
         <div id="season-selector" class="season-selector">
             <button id="season-first" class="season-nav season-nav-jump" aria-label="Earliest season"><i class="mdi mdi-chevron-triple-left"></i></button>
             <button id="season-prev10" class="season-nav season-nav-jump" aria-label="Back 10 years"><i class="mdi mdi-chevron-double-left"></i></button>
@@ -45,11 +55,15 @@
 
         <div id="schedule" class="schedule-section">
             <h3 id="schedule-title"><i class="mdi mdi-calendar-month"></i> Schedule</h3>
+            <!-- A chip a month, to jump the list. -->
+            <div id="schedule-months" class="schedule-months" hidden></div>
             <div id="schedule-grid" class="schedule-grid">
                 <div class="loading">Loading schedule...</div>
             </div>
         </div>
-        
+        </aside>
+
+        <div class="home-notes">
         <div id="last-updated" class="last-updated"></div>
         <div id="data-credit" class="data-credit" style="display:none">Historical data provided by <a href="https://github.com/nflverse/nflverse-data" target="_blank" rel="noopener noreferrer">nflverse</a> and <a href="https://github.com/fivethirtyeight/nfl-elo-game" target="_blank" rel="noopener noreferrer">FiveThirtyEight</a></div>
 
@@ -86,6 +100,7 @@
                 <i class="mdi mdi-clipboard-outline share-icon"></i>
                 Copy
             </button>
+        </div>
         </div>
     </div>
     

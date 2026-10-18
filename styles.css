@@ -586,10 +586,15 @@ details:not([open]) > .collapsible-summary::before {
     margin-bottom: 1.5rem;
 }
 
+/* The list of compact rows. position: relative so each row's offsetTop is
+   measured from the list, which the month chips and the opening scroll use.
+   minmax(0, 1fr): one column that never grows past the list. */
 .schedule-grid {
+    position: relative;
     display: grid;
-    gap: 0.8rem;
-    max-height: 400px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    max-height: 520px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #ffb612 #203731;
@@ -616,6 +621,230 @@ details:not([open]) > .collapsible-summary::before {
 .schedule-grid::-webkit-scrollbar-thumb:hover,
 #card-ties .record-list::-webkit-scrollbar-thumb:hover {
     background: #ffd050;
+}
+
+/* --- Compact schedule rows (schedule-core.js) --- */
+
+/* The pinned game under the answer: a section's width, centered. */
+.schedule-featured {
+    max-width: 572px;
+    margin: 0.5rem auto 1rem;
+    text-align: center;
+}
+
+/* The chips wrap rather than scroll sideways: scrolled, the first chip sat
+   out of sight past the left edge with nothing to say it was there. */
+.schedule-months {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0 0 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.sched-chip {
+    flex: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 182, 18, 0.35);
+    border-radius: 999px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sched-chip:hover {
+    color: #fff;
+    border-color: #ffb612;
+}
+
+.sched-chip.active {
+    background: #ffb612;
+    border-color: #ffb612;
+    color: #203731;
+}
+
+/* A phase's chips together — Preseason, the regular season's months,
+   Playoffs — in a faint pill of their own, so the phases read apart and a
+   row breaks between them. */
+.sched-chip-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.15rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* A month's heading stays at the top of the list while its games scroll. */
+.sched-month {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #1a2e28;
+    color: #ffb612;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 0.35rem 0.6rem;
+}
+
+/* One game: date, opponent, result or time, TV. A phone moves the TV under
+   the opponent so the row fits. */
+.sched-row {
+    display: grid;
+    grid-template-columns: 4.6rem minmax(0, 1fr) auto auto;
+    grid-template-areas: "date opp out tv";
+    align-items: center;
+    column-gap: 0.6rem;
+    padding: 0.45rem 0.6rem;
+    border-left: 3px solid transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.sched-date { grid-area: date; color: rgba(255, 255, 255, 0.75); white-space: nowrap; }
+.sched-dow { color: rgba(255, 255, 255, 0.5); font-size: 0.8em; }
+.sched-opp { grid-area: opp; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sched-out { grid-area: out; font-weight: 700; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.sched-tv { grid-area: tv; color: rgba(255, 255, 255, 0.6); font-size: 0.8rem; white-space: nowrap; text-align: right; }
+.sched-tv:empty { display: none; }
+
+/* The all-time record against the opponent, after its name. Last in the
+   cell, so a narrow row's ellipsis takes it before the name. */
+.sched-h2h {
+    margin-left: 0.3rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-decoration: none;
+}
+
+.sched-h2h:hover {
+    color: #ffb612;
+    text-decoration: underline;
+}
+
+/* A played game's ESPN link, in the slot the TV takes for a game to come. */
+.sched-links {
+    grid-area: tv;
+    display: inline-flex;
+    gap: 0.25rem;
+    justify-content: flex-end;
+    white-space: nowrap;
+}
+
+.sched-link {
+    display: inline-flex;
+    align-items: center;
+    background: transparent;
+    border: 1px solid rgba(255, 182, 18, 0.3);
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0.2rem 0.35rem;
+    text-decoration: none;
+    letter-spacing: 0.03em;
+}
+
+.sched-link:hover,
+.sched-link:focus-visible {
+    color: #203731;
+    background: #ffb612;
+    border-color: #ffb612;
+    outline: none;
+}
+
+.sched-win { border-left-color: #4CAF50; }
+.sched-win .sched-out { color: #4CAF50; }
+.sched-loss { border-left-color: #f44336; }
+.sched-loss .sched-out { color: #ff6b6b; }
+.sched-tie .sched-out { color: rgba(255, 255, 255, 0.8); }
+.sched-live { border-left-color: #ff0000; background: rgba(255, 0, 0, 0.12); }
+.sched-live .sched-out { color: #ff6b6b; }
+.sched-next { border-left-color: #ffb612; background: rgba(255, 182, 18, 0.12); }
+.sched-next .sched-out { color: #ffb612; }
+.sched-upcoming .sched-out { color: rgba(255, 255, 255, 0.85); font-weight: 600; }
+.sched-postponed { opacity: 0.6; }
+
+@media (max-width: 480px) {
+    .sched-row {
+        grid-template-columns: 4.3rem minmax(0, 1fr) auto;
+        grid-template-areas: "date opp out" "date tv tv";
+        row-gap: 0.1rem;
+        font-size: 0.85rem;
+    }
+    .sched-tv { text-align: left; }
+    .sched-links { justify-content: flex-start; margin-top: 0.15rem; }
+}
+
+/* --- Home page layout --- */
+
+/* From 1100px the page splits: the answer and the season's story on the
+   left, the schedule on the right as a panel the height of the screen, its
+   list scrolling inside. Narrower, the blocks stack in source order: story,
+   schedule, notes.
+
+   width: 100% matters. body is a centring column flexbox, so a container
+   with only a max-width is sized to its content, and the grid's 1fr column
+   would have nothing definite to divide. */
+@media (min-width: 1100px) {
+    .container.home-layout {
+        max-width: 1280px;
+        width: 100%;
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(420px, 520px);
+        /* The title stays over the left column, so the schedule panel starts
+           at the top of the page. */
+        grid-template-areas: "title sched" "main sched" "notes sched";
+        grid-template-rows: auto auto 1fr;
+        column-gap: 2rem;
+        align-items: start;
+        padding-top: 1rem;
+    }
+    .home-layout > .site-title { grid-area: title; margin-top: 0.5rem; }
+    .home-main { grid-area: main; min-width: 0; }
+    .home-notes { grid-area: notes; }
+    .home-schedule {
+        grid-area: sched;
+        position: sticky;
+        top: 1rem;
+        height: calc(100vh - 2rem);
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+    /* The section is a fixed 572px elsewhere; in the panel it fills it. */
+    .home-schedule .schedule-section {
+        flex: 1;
+        min-height: 0;
+        width: auto;
+        display: flex;
+        flex-direction: column;
+        margin: 0.5rem 0 0;
+    }
+    .home-schedule .schedule-section h3 {
+        margin-bottom: 0.75rem;
+    }
+    .home-schedule .schedule-grid {
+        flex: 1;
+        min-height: 0;
+        max-height: none;
+    }
+    /* The Photos button sits between the season selector and the section,
+       and a column flexbox would stretch it across the panel. */
+    .home-schedule > .gallery-btn {
+        align-self: center;
+    }
 }
 
 .game-item {
