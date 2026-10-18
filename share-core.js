@@ -30,7 +30,7 @@ export function shareButtonsHtml(btnClass, { labels = false } = {}) {
 	).join('\n\t\t');
 	return `${native ? `<button class="${btnClass}" data-share="native" aria-label="Share"><i class="mdi mdi-share-variant share-icon"></i>${text('Share')}</button>` : ''}
 		${alts}
-		<button class="${btnClass}" data-share="copy" aria-label="Copy link"><i class="mdi mdi-clipboard-outline share-icon"></i>${text('Copy')}</button>`;
+		<button class="${btnClass}" data-share="copy" aria-label="Copy link"><i class="mdi mdi-clipboard-outline share-icon"></i>${text('Copy link')}</button>`;
 }
 
 // Wire the [data-share] buttons inside `row` to share `message` + `url`.
@@ -57,6 +57,28 @@ export function wireShareRow(row, message, url, { labels = false } = {}) {
 				break;
 		}
 	});
+}
+
+// Wire the footer Share dropdown: the trigger shows and hides the menu, a
+// click outside or Escape closes it. Safe to call more than once. Ported
+// from the Brewers repo's share-core.js.
+export function wireShareDropdown() {
+	const trigger = document.getElementById('footer-share-trigger');
+	if (!trigger || trigger.dataset.wired) return;
+	const menu = trigger.parentElement.querySelector('.footer-share');
+	if (!menu) return;
+	trigger.dataset.wired = '1';
+
+	const open = (on) => {
+		menu.hidden = !on;
+		trigger.setAttribute('aria-expanded', String(on));
+	};
+	trigger.addEventListener('click', (e) => { e.stopPropagation(); open(menu.hidden); });
+	document.addEventListener('click', (e) => { if (!menu.hidden && !menu.contains(e.target) && e.target !== trigger) open(false); });
+	document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { open(false); trigger.focus(); } });
+	// Copy flashes "Copied!" in place, so the menu stays open for it; any
+	// other item leaves the page or opens the native sheet.
+	menu.addEventListener('click', (e) => { if (e.target.closest('[data-share]:not([data-share="copy"]), a, #share-native')) open(false); });
 }
 
 // Flash a button into its "copied" state for 2s, restoring its original

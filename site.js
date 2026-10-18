@@ -43,6 +43,10 @@ export const SITE = {
 	scoreAgainstLabel: 'Points Against',
 	/** The trophy. Used wherever a season's ending is described. */
 	championship: 'Super Bowl',
+	/** What the games before the season are called, as a schedule chip.
+	 *  The Brewers repo's schedule-core.js hardcodes "Spring"; football says
+	 *  Preseason, and both are just what fans call it. */
+	preseasonNoun: 'Preseason',
 	/** What the person in charge is called. This is why one site has
 	 *  coaches.html and the other managers.html, and it is the smallest change
 	 *  that lets those be one page. */

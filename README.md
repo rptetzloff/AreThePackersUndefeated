@@ -58,6 +58,14 @@ The CSV's pre-1999 rows map franchises to modern names but the 1999+ rows use as
 
 The current season's schedule on the main page annotates each game with the all-time head-to-head record against that opponent, linking to the rivalry page.
 
+## Home Page Layout
+
+The schedule is one compact row a game — date, opponent with its all-time record, result or start time, network — under a heading a month, with chips above the list to jump to the preseason, a regular-season month, or the playoffs (`schedule-core.js`). A played game links to ESPN. The live game, else the next one, is pinned as its full card just under the answer, with the live detail or the countdown. The list opens at the latest game and keeps its place when the live game refreshes.
+
+From 1100px the page splits into two columns: the answer and the season's story on the left, the schedule on the right as a panel the height of the screen with its list scrolling inside. Narrower, the blocks stack — answer and pinned game, the season's story, the schedule, the notes.
+
+Every page has a footer nav stuck to the bottom of the window: Home, Records, Head-to-Head, History, Coaches, Share and GitHub. On a phone it is a tab bar.
+
 ## Franchise History Chart
 
 `/history` charts every season since 1921 as one line — win percentage by default (ties count half; early seasons were ~10 games and modern ones 17, so win% reads honestly across eras). Any combination of metrics can be plotted at once (win %, wins, points for, points against): metrics sharing a scale get a real labeled axis, mixed scales normalize each series to its own range (tooltips carry exact numbers). An "include playoffs" toggle folds postseason games into every metric. Championship seasons get gold dots (the 1929–31 standings titles are hardcoded; every later title is "won the season's final playoff game"), perfect seasons get a white ring, hovering a season shows its record and points, and clicking a season opens its page. Metric selection and playoff inclusion persist like the site's other settings. A compact sparkline of the same chart sits under the answer on the main page (the viewed season marked in white) and links to `/history`.
@@ -98,15 +106,15 @@ The workflow uses the built-in `GITHUB_TOKEN`. Make sure your repository's Actio
 
 ## Sharing
 
-Below the schedule, a row of share buttons lets visitors spread the current season's status:
+The footer's **Share** menu lets visitors spread the current season's status (on History and Coaches, that page):
 
 - **Share** — uses the native OS share sheet on mobile browsers that support `navigator.share`
 - **Post on X / Post on Bluesky** — open the respective compose window pre-filled with the share message and URL
 - **Share on Facebook** — opens the Facebook sharer with the URL and message
 - **Post on Reddit** — opens Reddit's submit page with the URL and message pre-filled as the post title
-- **Copy** — copies the message and URL to the clipboard; the button briefly turns green to confirm
+- **Copy link** — copies the message and URL to the clipboard; the button briefly turns green to confirm
 
-On mobile browsers with native share support only the system Share button is shown. On desktop (or browsers without `navigator.share`) the individual platform buttons and Copy button are shown instead.
+On mobile browsers with native share support only the system Share button is shown. On desktop (or browsers without `navigator.share`) the individual platform buttons and Copy link are shown instead. Records and Head-to-Head share per card, so their footer has no Share menu.
 
 ## Social Cards & Link Previews
 
@@ -126,6 +134,7 @@ The site is served by `server.js`, a small Node web service that:
 1. Serves the static site (`index.html`, `main.js`, `styles.css`, `data/…`).
 2. Injects per-URL link-preview meta tags (see [Social Cards](#social-cards--link-previews)).
 3. Renders per-season card images at `/og/<season>.png`.
+4. Proxies the ESPN endpoints the pages call, at `/api/espn/…`, through a cache (see [Data Sources](#data-sources)).
 
 ### Relevant files
 
@@ -133,10 +142,13 @@ The site is served by `server.js`, a small Node web service that:
 server.js            # web service (static serving + meta injection + card route)
 lib/cards.js         # SVG -> PNG card generator (seasons + records)
 lib/seasons.js       # per-season record from CSV + live ESPN feed
+lib/espn-target.js   # allowlist of ESPN endpoints the proxy may fetch
+lib/espn-proxy.js    # cache in front of ESPN, lifetime chosen per response
 lib/records.js       # records/superlatives data + meta for /records routes
 lib/h2h.js           # head-to-head data + meta for /vs routes
 records-core.js      # shared superlative computation (browser + node)
 h2h-core.js          # shared head-to-head computation (browser + node)
+schedule-core.js     # the home page's compact schedule rows and chips
 fonts/               # Liberation Sans (SIL OFL 1.1), bundled for deterministic rendering
 render.yaml          # Render Blueprint
 ```
@@ -194,7 +206,7 @@ Multiple photos per season are supported — they will all be displayed.
 
 **1999–present (static)** — game data is sourced from [nflverse-data](https://github.com/nflverse/nflverse-data), maintained by the [nflverse](https://nflverse.com) project and licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Credit: nflverse contributors. This data lives in `data/packers_games.csv` and is refreshed by `npm run update-data`.
 
-**Current season (live)** — for the most recent NFL season, the app fetches live schedule and score data directly from the ESPN public API at runtime. This covers preseason, regular season, and playoffs. When a game is in progress, the app polls ESPN every 30 seconds and shows the live score, game clock, down-and-distance, and last play. No API key is required; the ESPN endpoints used are public and unauthenticated.
+**Current season (live)** — for the most recent NFL season, the app fetches live schedule and score data from the ESPN public API at runtime, through the server's `/api/espn/` proxy rather than from the browser. The proxy fetches only the three endpoints the pages use, shares one ESPN call between concurrent viewers, keeps each response as long as it can still change (15 seconds for a game in progress's summary, an hour for a schedule with no game near, a day once final), and serves the last good answer if ESPN is briefly down. This covers preseason, regular season, and playoffs. When a game is in progress, the page polls every 30 seconds and shows the live score, game clock, down-and-distance, and last play. No API key is required; the ESPN endpoints used are public and unauthenticated.
 
 The app determines which data source to use automatically: seasons present in the CSV use static data; the current season (and any season ESPN returns that is newer than the CSV) uses the live ESPN feed. If the ESPN fetch fails, the app falls back to the CSV.
 

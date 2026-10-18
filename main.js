@@ -1,9 +1,10 @@
         import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml } from './records-core.js';
 import { SITE } from './site.js';
+import { scheduleListHtml, monthChipsHtml } from './schedule-core.js';
 import { seasonVerdict } from './lib/season-state.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
         import { buildChartSvg } from './history-chart.js';
-        import { intentUrls, copyText, flashCopied } from './share-core.js';
+        import { intentUrls, copyText, flashCopied, wireShareDropdown } from './share-core.js';
 
         function buildSeasonMap(games) {
         	const map = {};
@@ -17,7 +18,7 @@ import { seasonVerdict } from './lib/season-state.js';
 
         class PackersTracker {
         	constructor() {
-        		this.apiUrl = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/gb/schedule';
+        		this.apiUrl = '/api/espn/apis/site/v2/sports/football/nfl/teams/gb/schedule';
         		this.countdownInterval = null;
         		this.liveUpdateInterval = null;
         		this.currentSeason = null;
@@ -312,117 +313,151 @@ processCsvSeasonData(season) {
  this.updateStreakBanner(csvCompletedGames, season !== this.latestSeason);
 }
 
-// All-time head-to-head note linking to the opponent's rivalry page.
-// Returns null for opponents with no CSV history (shouldn't happen).
-h2hNote(opponentName) {
+// The all-time head-to-head against an opponent, linking to its rivalry
+// page, as { href, text, title } for a schedule row. Null for an opponent
+// with no CSV history (shouldn't happen).
+h2hLink(opponentName) {
   const o = this.h2hByName?.get(canonicalOpponent(opponentName));
   if (!o) return null;
+  return { href: `/vs/${o.slug}`, text: o.record, title: `Packers vs ${o.name} — all-time head-to-head` };
+}
+
+// The same, as the note on the pinned game's card.
+h2hNote(opponentName) {
+  const link = this.h2hLink(opponentName);
+  if (!link) return null;
   const note = document.createElement('a');
   note.className = 'game-h2h';
-  note.href = `/vs/${o.slug}`;
-  note.textContent = `All-time: ${o.record}`;
-  note.title = `Packers vs ${o.name} — all-time head-to-head`;
+  note.href = link.href;
+  note.textContent = `All-time: ${link.text}`;
+  note.title = link.title;
   return note;
 }
 
+// A past season (the CSV): every game a compact row (schedule-core.js).
 displayCsvSchedule(games, season) {
-  const scheduleGrid = document.getElementById('schedule-grid');
-  scheduleGrid.innerHTML = '';
-
+  const sorted = [...games].sort((a, b) => new Date(a.date) - new Date(b.date));
   // Head-to-head notes only make sense on the current season's schedule.
   const showH2h = season === this.latestSeason;
-
-        		// Sort by date
-  const sorted = [...games].sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  let currentSection = null;
-  sorted.forEach(g => {
-     const isPlayoff = g.playoff === '1';
-     const isRegular = g.regular_season === '1';
-     const section = isPlayoff ? 'post' : (isRegular ? 'regular' : 'other');
-     const sectionLabels = { post: 'Playoffs', regular: 'Regular Season', other: 'Other' };
-
-     if (section !== currentSection) {
-        currentSection = section;
-        const divider = document.createElement('div');
-        divider.className = 'season-divider';
-        divider.textContent = sectionLabels[section] || section;
-        scheduleGrid.appendChild(divider);
-    }
-
-    scheduleGrid.appendChild(this.createCsvGameItem(g, showH2h));
-});
+  const rows = sorted.map((g) => {
+    const res = g.result === 'WIN' ? 'win' : g.result === 'LOSS' ? 'loss' : 'tie';
+    const isSuperBowl = Boolean(g.championship && g.championship.trim());
+    return {
+      key: `${g.date}-${g.Opponent}`, date: localDate(g.date),
+      // HOME, AWAY or NEUTRAL; a neutral site reads "vs", as the card did.
+      home: g.location !== 'AWAY',
+      opp: g.Opponent, state: res,
+      text: `${res === 'win' ? 'W' : res === 'loss' ? 'L' : 'T'} ${parseInt(g.scoreFor) || 0}-${parseInt(g.scoreAgainst) || 0}`,
+      tv: isSuperBowl ? [`Super Bowl ${g.championship.toUpperCase()}`] : [],
+      phase: g.playoff === '1' ? 'post' : g.regular_season === '1' ? 'regular' : 'other',
+      h2h: showH2h ? this.h2hLink(g.Opponent) : null,
+    };
+  });
+  this.renderScheduleList(rows, { regular: 'Regular Season', post: 'Playoffs', other: 'Other' }, { season, featured: null, scrollTo: null });
 }
 
-createCsvGameItem(g, showH2h = false) {
-        		const result = g.result; // WIN / LOSS / TIE
-        		const opponent = g.Opponent;
-        		const location = g.location; // HOME / AWAY / NEUTRAL
-        		const packersScore = parseInt(g.scoreFor) || 0;
-        		const opponentScore = parseInt(g.scoreAgainst) || 0;
-        		const date = localDate(g.date);
-        		const isSuperBowl = g.championship && g.championship.trim() !== '';
+// Scroll the schedule list so `el` sits in its middle.
+centerInSchedule(el, behavior = 'auto') {
+  const grid = document.getElementById('schedule-grid');
+  const top = el.offsetTop - (grid.clientHeight / 2) + (el.offsetHeight / 2);
+  grid.scrollTo({ top: Math.max(0, top), behavior });
+}
 
-        		const gameItem = document.createElement('div');
-        		gameItem.className = 'game-item completed';
+/**
+ * Draw the schedule list: the pinned game (live, else next) above it, a
+ * chip a month, and the compact rows. The first time a season is drawn the
+ * list scrolls to `scrollTo` (the latest game); a redraw of the same season
+ * — the 30-second live refresh — keeps the reader's place. Before, every
+ * refresh scrolled it back.
+ */
+renderScheduleList(rows, phaseLabels, { season, featured, scrollTo }) {
+  const grid = document.getElementById('schedule-grid');
+  const chips = document.getElementById('schedule-months');
+  const pinned = document.getElementById('schedule-featured');
+  const sameSeason = this._scheduleSeason === `${season}`;
+  const keep = grid.scrollTop;
 
-        		if (result === 'WIN') gameItem.classList.add('win');
-        		else if (result === 'LOSS') gameItem.classList.add('loss');
+  pinned.innerHTML = '';
+  if (featured) pinned.appendChild(featured);
+  pinned.hidden = !featured;
 
-        		const gameInfo = document.createElement('div');
-        		gameInfo.className = 'game-info';
+  grid.innerHTML = rows.length ? scheduleListHtml(rows, phaseLabels) : '<div class="loading">No games scheduled.</div>';
+  chips.innerHTML = monthChipsHtml(rows);
+  chips.hidden = !chips.innerHTML;
+  this.wireSchedule();
 
-        		const gameDetails = document.createElement('div');
-        		gameDetails.className = 'game-details';
+  if (sameSeason) {
+    grid.scrollTop = keep;
+  } else {
+    this._scheduleSeason = `${season}`;
+    const target = scrollTo && grid.querySelector(`.sched-row[data-key="${CSS.escape(String(scrollTo))}"]`);
+    if (target) this.centerInSchedule(target);
+    else grid.scrollTop = 0;
+  }
+  this.markActiveMonth();
+}
 
-        		const opponentDiv = document.createElement('div');
-        		opponentDiv.className = 'game-opponent';
-        		const prefix = location === 'HOME' ? 'vs' : location === 'AWAY' ? '@' : 'vs';
-        		opponentDiv.textContent = `${prefix} ${opponent}`;
+// The month chips and the list's scrolling, wired once: the list is
+// redrawn, its container is not.
+wireSchedule() {
+  if (this._scheduleWired) return;
+  this._scheduleWired = true;
+  const grid = document.getElementById('schedule-grid');
+  const chips = document.getElementById('schedule-months');
+  chips.addEventListener('click', (e) => {
+    const chip = e.target.closest('.sched-chip');
+    if (!chip) return;
+    const group = [...grid.querySelectorAll('.sched-group')].find((g) => g.dataset.group === chip.dataset.group);
+    // The phase's divider sits just above its first group; land on it, so
+    // "Playoffs" is in view, not scrolled just past.
+    const divider = group?.previousElementSibling?.classList.contains('season-divider') ? group.previousElementSibling : null;
+    // Remembered for markActiveMonth: a group near the end cannot scroll to
+    // the top of the list, so at the bottom the chip clicked is the one lit.
+    this._chipTarget = chip.dataset.group;
+    if (group) grid.scrollTo({ top: (divider || group).offsetTop, behavior: 'smooth' });
+    // Already at the bottom, the list does not move and no scroll event
+    // comes: mark the chip now.
+    this.markActiveMonth();
+  });
+  // The reader scrolling the list themselves lets go of a chip's jump (the
+  // smooth scroll a chip starts passes "not at the bottom" on its way, so
+  // the scroll event itself cannot be what clears it).
+  const letGo = () => { this._chipTarget = null; };
+  for (const type of ['wheel', 'touchstart', 'keydown', 'mousedown']) grid.addEventListener(type, letGo, { passive: true });
+  let ticking = false;
+  grid.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => { ticking = false; this.markActiveMonth(); });
+  });
+}
 
-        		const dateDiv = document.createElement('div');
-        		dateDiv.className = 'game-date';
-        		dateDiv.textContent = date.toLocaleDateString('en-US', {
-        			weekday: 'short', month: 'short', day: 'numeric'
-        		});
-
-        		gameDetails.appendChild(opponentDiv);
-        		gameDetails.appendChild(dateDiv);
-
-        		if (showH2h) {
-        			const h2h = this.h2hNote(opponent);
-        			if (h2h) gameDetails.appendChild(h2h);
-        		}
-
-        		if (isSuperBowl) {
-        			const sbLabel = document.createElement('div');
-        			sbLabel.className = 'game-status';
-        			sbLabel.textContent = `Super Bowl ${g.championship.toUpperCase()}`;
-        			gameDetails.appendChild(sbLabel);
-        		}
-
-        		gameInfo.appendChild(gameDetails);
-        		gameItem.appendChild(gameInfo);
-
-        		const scoreDiv = document.createElement('div');
-        		scoreDiv.className = 'game-score';
-        		if (result === 'WIN') scoreDiv.classList.add('win');
-        		else if (result === 'LOSS') scoreDiv.classList.add('loss');
-
-        		const resultPrefix = result === 'WIN' ? 'W ' : result === 'LOSS' ? 'L ' : 'T ';
-        		scoreDiv.textContent = `${resultPrefix}${packersScore}-${opponentScore}`;
-        		scoreDiv.style.textAlign = 'center';
-        		scoreDiv.style.marginTop = '0.5rem';
-        		scoreDiv.style.width = '100%';
-
-        		gameItem.appendChild(scoreDiv);
-        		return gameItem;
-        	}
+// Light the chip standing for the group at the top of the list.
+markActiveMonth() {
+  const grid = document.getElementById('schedule-grid');
+  const chips = document.getElementById('schedule-months');
+  // The first group not scrolled fully past the top, so a phase divider at
+  // the top marks the group below it rather than the one that just ended.
+  let current = null;
+  const groups = [...grid.querySelectorAll('.sched-group')];
+  for (const group of groups) {
+    if (group.offsetTop + group.offsetHeight > grid.scrollTop + 8) { current = group.dataset.group; break; }
+  }
+  // Scrolled to the bottom, the last groups can never reach the top: the
+  // chip clicked to get there is the one lit, or, scrolled there by hand,
+  // the season's last group.
+  const atBottom = grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 2;
+  if (atBottom && grid.scrollTop > 0) current = this._chipTarget || groups[groups.length - 1]?.dataset.group || current;
+  chips.querySelectorAll('.sched-chip').forEach((c) => {
+    const on = Boolean(current) && (c.dataset.covers || '').split(' ').includes(current);
+    c.classList.toggle('active', on);
+  });
+}
 
         	async fetchLiveGameScore(liveGame, scheduleData) {
         		try {
         			const gameId = liveGame.id;
-        			const scoreboardUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard`;
+        			const scoreboardUrl = `/api/espn/apis/site/v2/sports/football/nfl/scoreboard`;
         			const response = await fetch(scoreboardUrl);
         			const scoreboardData = await response.json();
 
@@ -448,7 +483,7 @@ createCsvGameItem(g, showH2h = false) {
         					};
         				}
         			} else {
-        				const boxscoreUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${gameId}`;
+        				const boxscoreUrl = `/api/espn/apis/site/v2/sports/football/nfl/summary?event=${gameId}`;
         				const boxResponse = await fetch(boxscoreUrl);
         				const boxscoreData = await boxResponse.json();
 
@@ -696,7 +731,6 @@ createCsvGameItem(g, showH2h = false) {
          }
 
          displaySchedule(events, isPastSeason = false) {
-          const scheduleGrid = document.getElementById('schedule-grid');
           const now = new Date();
 
           const sortedEvents = events.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -718,66 +752,62 @@ createCsvGameItem(g, showH2h = false) {
              status === 'STATUS_RAIN_DELAY';
          });
 
-          scheduleGrid.innerHTML = '';
+          const rows = sortedEvents.map((event) => this.espnScheduleRow(event, nextGame, liveGame, isPastSeason));
+          // The live game, else the next one, as the full card above the list:
+          // the live detail, or the countdown.
+          const pinnedEvent = !isPastSeason ? (liveGame || nextGame) : null;
+          const featured = pinnedEvent ? this.createGameItem(pinnedEvent, nextGame, liveGame, now) : null;
+          // The latest game played (or the one being played) is where the
+          // list opens.
+          const latest = [...sortedEvents].reverse().find((e) => ['post', 'in'].includes(e.competitions?.[0]?.status?.type?.state));
+          this.renderScheduleList(rows, { pre: 'Preseason', regular: 'Regular Season', post: 'Playoffs' }, {
+             season: `${this.currentSeason}`, featured, scrollTo: latest?.id ?? null,
+          });
 
-          const sectionLabels = { pre: 'Preseason', regular: 'Regular Season', post: 'Playoffs' };
-          let currentSection = null;
-          sortedEvents.forEach(event => {
-             const section = event._seasonType;
-             if (section && section !== currentSection) {
-                currentSection = section;
-                const divider = document.createElement('div');
-                divider.className = 'season-divider';
-                divider.textContent = sectionLabels[section] || section;
-                scheduleGrid.appendChild(divider);
-            }
-            const gameItem = this.createGameItem(event, nextGame, liveGame, now);
-            scheduleGrid.appendChild(gameItem);
-        });
-
-          if (!isPastSeason) {
-             setTimeout(() => {
-                this.autoScrollToRecentGame(scheduleGrid, sortedEvents, now);
-            }, 500);
-
-             if (liveGame) {
-                this.startLiveUpdates();
-            }
-        }
+          if (!isPastSeason && liveGame) this.startLiveUpdates();
     }
 
-    autoScrollToRecentGame(scheduleGrid, sortedEvents, now) {
-      let mostRecentCompletedIndex = -1;
-
-      for (let i = sortedEvents.length - 1; i >= 0; i--) {
-         const event = sortedEvents[i];
-         const status = event.competitions?.[0]?.status?.type?.name;
-
-         if (status === 'STATUS_IN_PROGRESS' ||
-            status === 'STATUS_HALFTIME' ||
-            status === 'STATUS_DELAYED' ||
-            status === 'STATUS_FINAL') {
-            mostRecentCompletedIndex = i;
-        break;
+    // One ESPN game as a schedule row: result, live score or start time, and
+    // its network for games still to come.
+    espnScheduleRow(event, nextGame, liveGame, isPastSeason) {
+      const comp = event.competitions[0];
+      const st = comp.status?.type || {};
+      const gb = comp.competitors.find((c) => c.team.abbreviation === 'GB');
+      const opp = comp.competitors.find((c) => c !== gb) || {};
+      const score = (c) => parseInt(c?.score?.value ?? c?.score?.displayValue ?? c?.score ?? 0) || 0;
+      const date = new Date(event.date);
+      const isLive = liveGame && event.id === liveGame.id;
+      let state;
+      let text;
+      if (st.state === 'post' && st.name === 'STATUS_FINAL') {
+        const [p, o] = [score(gb), score(opp)];
+        state = p > o ? 'win' : p < o ? 'loss' : 'tie';
+        text = `${state === 'win' ? 'W' : state === 'loss' ? 'L' : 'T'} ${p}-${o}`;
+      } else if (isLive || st.state === 'in') {
+        state = 'live';
+        text = `${score(gb)}-${score(opp)} ${st.shortDetail || ''}`.trim();
+      } else if (st.state === 'post') {
+        state = 'postponed';
+        text = st.shortDetail || st.description || 'Postponed';
+      } else {
+        state = nextGame && event.id === nextGame.id ? 'next' : 'upcoming';
+        text = event.timeValid === false ? 'TBD' : date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      }
+      const upcoming = state === 'next' || state === 'upcoming';
+      const network = comp.broadcasts?.[0]?.media?.shortName;
+      return {
+        key: String(event.id), date, phase: event._seasonType,
+        home: gb?.homeAway === 'home',
+        opp: opp.team?.shortDisplayName || opp.team?.name || opp.team?.displayName || '',
+        state, text,
+        tv: upcoming && network ? [network] : [],
+        // H2H only on the current season's schedule (offseason included).
+        h2h: this.currentSeason === this.latestSeason ? this.h2hLink(opp.team?.displayName) : null,
+        links: upcoming || state === 'postponed' ? null : {
+          espn: `https://www.espn.com/nfl/game/_/gameId/${encodeURIComponent(event.id)}`,
+        },
+      };
     }
-}
-
-if (mostRecentCompletedIndex >= 0) {
- const gameItems = scheduleGrid.children;
- if (gameItems[mostRecentCompletedIndex]) {
-    const gameItem = gameItems[mostRecentCompletedIndex];
-    const containerHeight = scheduleGrid.clientHeight;
-    const itemHeight = gameItem.offsetHeight;
-    const itemTop = gameItem.offsetTop;
-    const scrollTop = itemTop - (containerHeight / 2) + (itemHeight / 2);
-
-    scheduleGrid.scrollTo({
-       top: Math.max(0, scrollTop),
-       behavior: 'smooth'
-   });
-}
-}
-}
 
 createGameItem(event, nextGame, liveGame, now) {
   const competition = event.competitions[0];
@@ -1043,6 +1073,7 @@ setupShareButtons() {
   copyBtn.addEventListener('click', () => this.copyLink());
 
   this.updateIntentLinks();
+  wireShareDropdown();
 }
 
 getShareMessage() {

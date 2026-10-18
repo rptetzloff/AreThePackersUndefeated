@@ -15,6 +15,8 @@ import { records, recordsMeta, isRecordSlug, seasonHistory, historyMeta } from '
 import { coaches, coachesMeta } from './lib/coaches.js';
 import { h2h, h2hMeta, isOpponentSlug } from './lib/h2h.js';
 import { esc } from './records-core.js';
+import { espnTarget } from './lib/espn-target.js';
+import { createEspnCache, browserMaxAge } from './lib/espn-proxy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
@@ -212,10 +214,32 @@ async function serveStatic(req, res, pathname) {
   }
 }
 
+// /api/espn/<path>: the three ESPN endpoints the pages call, through the
+// cache in lib/espn-proxy.js. Anything not on lib/espn-target.js's list 404s.
+const espn = createEspnCache();
+async function serveEspnProxy(res, path, search) {
+  const target = espnTarget(path, search);
+  if (!target) return notFound(res);
+  const got = await espn.get(target);
+  if (!got) {
+    res.writeHead(502, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ error: 'ESPN unreachable' }));
+  }
+  res.writeHead(got.status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': `public, max-age=${browserMaxAge(got)}`,
+    'X-Proxy-Cache': got.cacheState,
+  });
+  res.end(got.body);
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
     const pathname = decodeURIComponent(url.pathname);
+
+    if (pathname.startsWith('/api/espn/'))
+      return await serveEspnProxy(res, pathname.slice('/api/espn/'.length), url.search);
 
     const ogRec = pathname.match(/^\/og\/records\/([a-z-]+)\.png$/);
     if (ogRec) {
