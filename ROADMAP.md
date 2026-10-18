@@ -243,17 +243,39 @@ attempt to share before both sides had tests went badly.
 worth it — it's the prerequisite for contrast testing, as in
 `vue-password-generator` — and it's what makes `styles.css` shareable at all.
 
+*October 2026:* half done. The Brewers `dev` branch now has them — 575
+`var(--…)` uses against 119 remaining literals — along with the light / dark /
+system theme switcher they made possible. This repo still has none, so the
+switcher cannot come across until they do.
+
 ### Backport what Brewers has and Packers doesn't
-Footer nav bar with active-page highlight, the disclaimer/licence modal, mobile
-tab bar, tiered ESPN proxy cache TTLs. Also `sortable.js`, where the two have
+~~Footer nav bar with active-page highlight~~, the disclaimer/licence modal,
+~~mobile tab bar~~, ~~tiered ESPN proxy cache TTLs~~. Also `sortable.js`, where the two have
 **zero shared exports** — Brewers' generates headers from a column spec and
 emits `aria-sort`, Packers' reads `data-sort` from hand-written markup with no
 accessibility affordance. Brewers' is strictly better; take it and port the four
 call sites.
 
-Not portable: everything TV — providers, channels, watch modal, sponsor slots.
+*October 2026:* the footer nav (a tab bar on a phone), the ESPN proxy with its
+tiered cache, and the home page's two-column layout with compact schedule rows
+shipped together. The proxy came over as an allowlist from the start, which the
+Brewers one only became after CodeQL flagged it.
+
+Still to come, roughly in order of how much they would be used: the live game
+card (down and distance, drives, the last plays, from a server-side reduction
+of ESPN's summary, as Brewers does for baseball), TV, the playoff panel and
+bracket, a box score page, the `.ics` calendar feed, the disclaimer modal,
+`sortable.js`.
+
+~~Not portable: everything TV — providers, channels, watch modal, sponsor slots.
 Those exist because one site answers "can I watch this" and the other answers
-"are they still undefeated."
+"are they still undefeated."~~ Wrong, and it was repeated without being checked.
+`tv-core.js` names no sport: it is a channel table, a provider table, and the
+lookups between them. ESPN's NFL schedule carries a broadcaster on every game,
+and in 2026 those are CBS, Fox, NBC, ESPN, Prime Video and Netflix — "where do I
+watch Thursday's game" is a live question for this site too. What it needs is
+data, not code: NBC, CBS, Prime Video and Netflix rows, and each provider's
+numbers for the Green Bay and Wausau affiliates.
 
 ### Commit the current season's data
 Today the season in progress never touches a CSV. `lib/espn-current.js` fetches
