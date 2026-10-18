@@ -18,7 +18,7 @@ import { seasonVerdict } from './lib/season-state.js';
 
         class PackersTracker {
         	constructor() {
-        		this.apiUrl = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/gb/schedule';
+        		this.apiUrl = '/api/espn/apis/site/v2/sports/football/nfl/teams/gb/schedule';
         		this.countdownInterval = null;
         		this.liveUpdateInterval = null;
         		this.currentSeason = null;
@@ -457,7 +457,7 @@ markActiveMonth() {
         	async fetchLiveGameScore(liveGame, scheduleData) {
         		try {
         			const gameId = liveGame.id;
-        			const scoreboardUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard`;
+        			const scoreboardUrl = `/api/espn/apis/site/v2/sports/football/nfl/scoreboard`;
         			const response = await fetch(scoreboardUrl);
         			const scoreboardData = await response.json();
 
@@ -483,7 +483,7 @@ markActiveMonth() {
         					};
         				}
         			} else {
-        				const boxscoreUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${gameId}`;
+        				const boxscoreUrl = `/api/espn/apis/site/v2/sports/football/nfl/summary?event=${gameId}`;
         				const boxResponse = await fetch(boxscoreUrl);
         				const boxscoreData = await boxResponse.json();
 
