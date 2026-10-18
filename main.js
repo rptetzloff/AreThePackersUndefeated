@@ -4,7 +4,7 @@ import { scheduleListHtml, monthChipsHtml } from './schedule-core.js';
 import { seasonVerdict } from './lib/season-state.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
         import { buildChartSvg } from './history-chart.js';
-        import { intentUrls, copyText, flashCopied } from './share-core.js';
+        import { intentUrls, copyText, flashCopied, wireShareDropdown } from './share-core.js';
 
         function buildSeasonMap(games) {
         	const map = {};
@@ -1073,6 +1073,7 @@ setupShareButtons() {
   copyBtn.addEventListener('click', () => this.copyLink());
 
   this.updateIntentLinks();
+  wireShareDropdown();
 }
 
 getShareMessage() {

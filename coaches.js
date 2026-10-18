@@ -4,7 +4,7 @@
 // sort on click; coach photos open in the site's lightbox.
 import { parseGames, computeSeasonHistory, esc } from './records-core.js';
 import { parseCoachesCsv, computeCoaches, coachesCopy } from './coaches-core.js';
-import { shareButtonsHtml, wireShareRow } from './share-core.js';
+import { shareButtonsHtml, wireShareRow, wireShareDropdown } from './share-core.js';
 import { sortItems, wireSortHeaders } from './sortable.js';
 
 const pct = (p) => (p >= 1 ? '1.000' : p.toFixed(3).replace(/^0/, ''));
@@ -101,9 +101,11 @@ async function init() {
 		renderTable();
 		wireLightbox(data.coaches);
 
-		const share = document.getElementById('coaches-share');
-		share.innerHTML = shareButtonsHtml('share-btn', { labels: true });
+		// The page's share buttons live in the footer's Share menu.
+		const share = document.getElementById('footer-share');
+		share.innerHTML = shareButtonsHtml('footer-share-item', { labels: true });
 		wireShareRow(share, coachesCopy(data).desc, `${window.location.origin}/coaches`, { labels: true });
+		wireShareDropdown();
 	} catch (e) {
 		wrap.innerHTML = '<p class="record-empty">Could not load the game data. Try again later.</p>';
 		console.error(e);

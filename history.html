@@ -36,14 +36,23 @@
             <span class="history-legend-item"><span class="legend-dot legend-perfect"></span> Undefeated season</span>
             <span class="history-legend-item">Click any season to open it</span>
         </p>
-        <div class="share-section" id="history-share"></div>
     </div>
 
     <footer class="site-footer">
-        <a href="https://github.com/rptetzloff/AreThePackersUndefeated" target="_blank" rel="noopener noreferrer" class="github-link">
-            <i class="mdi mdi-github"></i>
-            View on GitHub
-        </a>
+        <nav class="footer-nav" aria-label="Site">
+            <a href="/" class="footer-nav-link"><i class="mdi mdi-home-outline"></i><span class="footer-nav-label">Home</span></a>
+            <a href="/records.html" class="footer-nav-link"><i class="mdi mdi-trophy-outline"></i><span class="footer-nav-label">Records</span></a>
+            <a href="/vs.html" class="footer-nav-link"><i class="mdi mdi-sword-cross"></i><span class="footer-nav-label footer-label-full">Head-to-Head</span><span class="footer-nav-label footer-label-short">H2H</span></a>
+            <a href="/history.html" class="footer-nav-link" aria-current="page"><i class="mdi mdi-chart-line"></i><span class="footer-nav-label">History</span></a>
+            <a href="/coaches.html" class="footer-nav-link"><i class="mdi mdi-whistle-outline"></i><span class="footer-nav-label">Coaches</span></a>
+            <div class="footer-share-wrap">
+                <button id="footer-share-trigger" class="footer-nav-link footer-share-trigger" type="button" aria-haspopup="true" aria-expanded="false">
+                    <i class="mdi mdi-share-variant"></i><span class="footer-nav-label">Share</span> <i class="mdi mdi-chevron-down footer-share-caret"></i>
+                </button>
+                <div class="footer-share" id="footer-share" role="menu" hidden></div>
+            </div>
+            <a href="https://github.com/rptetzloff/AreThePackersUndefeated" target="_blank" rel="noopener noreferrer" class="footer-nav-link footer-github"><i class="mdi mdi-github"></i><span class="footer-nav-label">GitHub</span></a>
+        </nav>
     </footer>
 
     <script src="/history.js" type="module"></script>
