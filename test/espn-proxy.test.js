@@ -38,8 +38,11 @@ test('every /api/espn/ path in the client source is on the list, and no page cal
 		for (const m of src.matchAll(/\/api\/espn\/(apis\/[\w/.-]+)/g)) paths.add(m[1])
 		assert.doesNotMatch(src, /site\.api\.espn\.com/, `${f} calls ESPN from the browser`)
 	}
-	assert.equal(paths.size, 3)
+	// The schedule and the scoreboard. The game summary is the server's
+	// own (/api/boxscore reduces it); no page fetches it whole any more.
+	assert.deepEqual([...paths].sort(), [`${NFL}scoreboard`, `${NFL}teams/gb/schedule`])
 	for (const p of paths) assert.notEqual(espnTarget(p), null, p)
+	assert.notEqual(espnTarget(`${NFL}summary`, '?event=1'), null)
 })
 
 const summary = (state, completed = false) => JSON.stringify({ header: { competitions: [{ status: { type: { state, completed } } }] } })
