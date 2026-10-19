@@ -2704,6 +2704,10 @@ th.sorted-desc::after {
 .field-play-turnover circle, .field-play-turnover polygon { fill: #ff9800; }
 .field-play-score line { stroke: #ffb612; stroke-width: 0.9; }
 .field-play-score circle, .field-play-score polygon { fill: #ffb612; }
+/* A kick or pass in the air, to where the ball changed hands, and the mark
+   there; the return from it is an ordinary arrow. */
+.field-play line.field-play-air { stroke-dasharray: 1.2 0.8; stroke-width: 0.45; }
+.field-play-via { fill: #ffffff; stroke: #1a2e28; stroke-width: 0.2; }
 
 .drive-log {
     margin-top: 0.6rem;
