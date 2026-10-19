@@ -671,6 +671,41 @@ details:not([open]) > .collapsible-summary::before {
     color: rgb(var(--fg-rgb) / 0.45);
 }
 
+/* Birthdays under the game, or alone on a day without one. */
+.otd-born {
+    margin-top: 0.6rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgb(var(--accent-rgb) / 0.2);
+    font-size: 0.85rem;
+    color: rgb(var(--fg-rgb) / 0.8);
+}
+
+.otd-header + .otd-born {
+    border-top: none;
+    padding-top: 0;
+}
+
+.otd-born .mdi {
+    color: var(--accent-text);
+}
+
+.otd-born a {
+    color: var(--fg);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px dotted rgb(var(--accent-rgb) / 0.5);
+    /* A name wraps between players, never inside one. */
+    white-space: nowrap;
+}
+
+.otd-born a:hover {
+    color: var(--accent-text);
+}
+
+.otd-born-year {
+    color: rgb(var(--fg-rgb) / 0.5);
+}
+
 @media (max-width: 620px) {
     .collapsible-section {
         width: 100%;

@@ -32,6 +32,8 @@ The box is hidden automatically when there are no completed games to analyze (e.
 
 Near the top of the page, below the streak box, the app surfaces a random Packers game played on (or within a few days of) today's calendar date, pulled from the full historical record.
 
+Under it, the Packers born that day (the exact day; the games look three days either side): the three with the most Packers seasons, linked to their player pages, and a count of the rest. On a day with no game near it the birthdays are the card, and with neither it stays hidden. They come from `/api/born/<MM-DD>`. Birth dates are nflverse's `players.csv` (CC BY 4.0), for every player since 1999 (645, a birthday on 306 days of the year): `update-data.js` writes them to `data/packers_player_births.csv`, and the server adds anyone the file lacks, a player new in the season being played, from nflverse at most once a day. Before 1999 nflverse cannot say who played for Green Bay, so the birthdays start there, as the stats do.
+
 Both the streak box and the On This Day card are independently collapsible — click the small toggle label above each one to hide or show it.
 
 ### Testing with a specific date
@@ -170,6 +172,7 @@ lib/espn-target.js   # allowlist of ESPN endpoints the proxy may fetch
 lib/espn-proxy.js    # cache in front of ESPN, lifetime chosen per response
 lib/espn-box.js      # a game's box score, reduced from ESPN's summary
 lib/game-details.js  # a past game's quarters, scoring and drives from nflverse pbp
+lib/player-births.js # Packers birth dates from nflverse players.csv
 lib/records.js       # records/superlatives data + meta for /records routes
 lib/h2h.js           # head-to-head data + meta for /vs routes
 records-core.js      # shared superlative computation (browser + node)
@@ -243,7 +246,7 @@ Application source code is released under the MIT License. See [LICENSE](LICENSE
 
 The FiveThirtyEight NFL ELO game data in `data/packers_games.csv` (seasons 1921–1998) is redistributed under the MIT License granted by FiveThirtyEight. See [LICENSE-DATA](LICENSE-DATA).
 
-The nflverse-data content in `data/packers_games.csv` (seasons 1999–present) is used under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/). Credit: [nflverse contributors](https://github.com/nflverse/nflverse-data).
+The nflverse-data content in `data/packers_games.csv` (seasons 1999–present), `data/packers_player_games.csv`, `data/packers_game_details.json` and `data/packers_player_births.csv` is used under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/). Credit: [nflverse contributors](https://github.com/nflverse/nflverse-data).
 
 The bundled Liberation Sans fonts in `fonts/` are © Red Hat, Inc. and licensed under the [SIL Open Font License 1.1](https://github.com/liberationfonts/liberation-fonts).
 

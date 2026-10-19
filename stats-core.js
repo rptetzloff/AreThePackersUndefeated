@@ -225,6 +225,19 @@ export function playerIndex(rows) {
 		.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** Packers born on a month and day ("12-02"), for the On This Day card: the
+ *  most Packers seasons first, then the most games, then the earliest born.
+ *  `births` is a Map of id to birth date (lib/player-births.js). A February
+ *  29th birthday appears on February 29th only. */
+export function bornOn(rows, births, monthDay) {
+	return [...totalsByPlayer(rows).values()]
+		.map((t) => ({ t, born: births.get(t.id) }))
+		.filter(({ born }) => born && born.slice(5) === monthDay)
+		.map(({ t, born }) => ({ id: t.id, name: t.name, pos: t.pos, year: Number(born.slice(0, 4)), seasons: seasonSpan(t.seasons), n: t.seasons.size, games: t.games }))
+		.sort((a, b) => b.n - a.n || b.games - a.games || a.year - b.year)
+		.map(({ n, games, ...b }) => b);
+}
+
 /**
  * One player's page: for each category he has stats in, a row a season and
  * his Packers career (since 1999) beneath, each computed exactly as the
