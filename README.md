@@ -74,6 +74,8 @@ The server boils ESPN's game summary (about 600KB) down to about 15KB (`lib/espn
 
 Only games ESPN has an id for get a page: this season's, from the schedule. Past seasons come from the CSV, which has no ESPN ids, so their rows have no Box link yet.
 
+Every page has a light and a dark theme. A button in the footer steps through System (follow the device), Light and Dark, and a choice is remembered; it is applied before the page paints, so a light page never flashes green. Dark is the site as it always was. The field tracker, the history chart and the champions panel keep their colours in both.
+
 Every page has a footer nav stuck to the bottom of the window: Home, Records, Head-to-Head, History, Coaches, Share and GitHub. On a phone it is a tab bar.
 
 ## Franchise History Chart
