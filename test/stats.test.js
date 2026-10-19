@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { passerRating, totalsByPlayer, categoryTable, seasonTables, leaders, rowsOf, CATEGORIES } from '../stats-core.js'
+import { passerRating, totalsByPlayer, categoryTable, seasonTables, leaders, rowsOf, CATEGORIES, playerSummary, gameLog, playerIndex, formatStat, PLAYER_ID } from '../stats-core.js'
 import { packersPlayerRows, playerRowsToCsv, parsePlayerGames, PLAYER_COLUMNS } from '../lib/player-stats.js'
 
 // Unit tests build their own rows and pin exact numbers; the real-data tests
@@ -102,4 +102,74 @@ test("nflverse is play-by-play's count, a play short here and there: the page sa
 	const rodgers = seasonTables(all, 2011).passing.find((r) => r.name === 'Aaron Rodgers')
 	assert.ok(Math.abs(rodgers.yds - 4643) <= 10 && Math.abs(rodgers.cmp - 343) <= 1)
 	assert.match(readFileSync(new URL('../stats.html', import.meta.url), 'utf8'), /can differ from official totals/)
+})
+
+test("a play nflverse credits to no one is no one's: no nameless row in any table", () => {
+	const rows = [row({ def_tackles_solo: '3' }), row({ player_id: '', player_display_name: '', def_tackles_solo: '6', def_sacks: '1' })]
+	assert.deepEqual(seasonTables(rows, 2011).defense.map((r) => r.name), ['A Player'])
+	// The real data has 20 such rows; none may reach a table.
+	for (const season of [...new Set(all.map((r) => Number(r.season)))]) {
+		for (const [cat, table] of Object.entries(seasonTables(all, season, 'ALL'))) {
+			assert.ok(table.every((r) => r.id && r.name), `${season} ${cat} has a row with no player`)
+		}
+	}
+})
+
+test("a player's page: a row a season in each category he played, his career beneath", () => {
+	const rows = [
+		row({ season: '2010', week: '1', attempts: '30', completions: '20', passing_yards: '250', passing_tds: '2' }),
+		row({ season: '2011', week: '1', attempts: '40', completions: '30', passing_yards: '350', passing_tds: '3', carries: '5', rushing_yards: '20' }),
+		row({ season: '2011', week: '20', season_type: 'POST', attempts: '35', completions: '25', passing_yards: '300' }),
+	]
+	const p = playerSummary(rows, 'p1')
+	assert.deepEqual(p.categories.map((c) => c.key), ['passing', 'rushing'])
+	const passing = p.categories[0]
+	assert.deepEqual(passing.seasons.map((s) => [s.season, s.row.yds]), [[2010, 250], [2011, 350]])
+	// The career is the regular season's, summed as the tables sum: 600, not
+	// the playoff game's 300 too.
+	assert.equal(passing.career.yds, 600)
+	assert.equal(playerSummary(rows, 'p1', 'ALL').categories[0].career.yds, 900)
+	assert.deepEqual(p.seasons, [2011, 2010])
+	assert.equal(p.span, '2010–2011')
+	assert.equal(playerSummary(rows, 'nobody'), null)
+})
+
+test("a season's game log: regular season by week, then the playoffs, a line in each category", () => {
+	const rows = [
+		row({ week: '20', season_type: 'POST', opponent_team: 'NYG', attempts: '46', completions: '26', passing_yards: '264' }),
+		row({ week: '2', opponent_team: 'CAR', attempts: '39', completions: '19', passing_yards: '308', carries: '4', rushing_yards: '6' }),
+		row({ week: '1', opponent_team: 'NO', attempts: '35', completions: '27', passing_yards: '312' }),
+	]
+	const log = gameLog(rows, 'p1', 2011)
+	assert.deepEqual(log.games.map((g) => [g.week, g.type, g.opponent]), [[1, 'REG', 'NO'], [2, 'REG', 'CAR'], [20, 'POST', 'NYG']])
+	assert.deepEqual(log.categories.map((c) => c.key), ['passing', 'rushing'])
+	assert.equal(log.games[0].lines.rushing, null)
+	assert.equal(log.games[1].lines.rushing.yds, 6)
+})
+
+test('search lists each player once, by name, with his position and seasons', () => {
+	const idx = playerIndex([row({ player_id: 'p2', player_display_name: 'Zed', season: '2001' }), row({ season: '2005' }), row({ season: '2009' })])
+	assert.deepEqual(idx, [{ id: 'p1', name: 'A Player', pos: 'QB', seasons: '2005–2009' }, { id: 'p2', name: 'Zed', pos: 'QB', seasons: '2001' }])
+	assert.ok(PLAYER_ID.test('00-0023459'))
+	assert.ok(!PLAYER_ID.test('../etc') && !PLAYER_ID.test('00-002345'))
+	// The whole id and nothing around it: it lands in a path.
+	assert.ok(!PLAYER_ID.test('00-0023459/../x') && !PLAYER_ID.test('x00-0023459'))
+})
+
+test('rates show one decimal always, counts their thousands, none a dash', () => {
+	assert.equal(formatStat('rate', 106), '106.0')
+	assert.equal(formatStat('pct', 40), '40.0')
+	assert.equal(formatStat('yds', 4636), '4,636')
+	assert.equal(formatStat('avg', null), '—')
+})
+
+test("Aaron Rodgers's page: eighteen seasons, his career as the record has it to a play", () => {
+	const p = playerSummary(all, '00-0023459')
+	assert.equal(p.name, 'Aaron Rodgers')
+	const passing = p.categories.find((c) => c.key === 'passing')
+	assert.equal(passing.seasons.length, 18)
+	// 475 touchdowns in 230 regular-season games, as the record has them;
+	// yards within the one missing completion of the official 59,055.
+	assert.deepEqual([passing.career.td, passing.career.g], [475, 230])
+	assert.ok(Math.abs(passing.career.yds - 59055) <= 10)
 })

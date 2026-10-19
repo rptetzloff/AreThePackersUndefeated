@@ -70,6 +70,8 @@ Each played or live game on the schedule has three links: **Summary**, **Box** (
 
 `/stats` has every Packers player's season since 1999, a table per category (passing, rushing, receiving, defense, kicking, punting, returns), for the regular season, the playoffs or both, and the leaders: single-season, and Packers career since 1999. The numbers are nflverse's weekly player stats (CC BY 4.0), summed by `stats-core.js`; rates are computed from the totals and left empty with no attempts, and the passer rating is the league's formula.
 
+Every player has a page at `/player/<nflverse id>`: a table per category he has stats in, a row a season with his Packers career since 1999 beneath, and a game log for any of his seasons. Names on the Stats page link to it, and a search box on the Stats page finds any of the 646 players since 1999.
+
 `update-data.js` writes `data/packers_player_games.csv`, one row per player per game, 1999 on (about 1.4MB). The season being played comes from nflverse at runtime, refreshed every six hours, as its games come from ESPN; the committed rows are its fallback.
 
 Two limits, both said on the page: nflverse has no player stats before 1999, so a career that began earlier (Brett Favre's, from 1992) is counted from 1999; and its stats are built from play-by-play, which now and then misses or misattributes a play, so a total can differ from the official one by a play (Aaron Rodgers's 2011 is one 7-yard completion short).
