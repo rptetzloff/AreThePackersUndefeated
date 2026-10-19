@@ -120,8 +120,12 @@ function metaBlock({ title, desc, img, canonical }) {
 
 
 
+// no-store: a 404 is often a file this server does not have yet. In the
+// 18 October release the old server, asked for the new theme.js, answered
+// 404 with no Cache-Control, and Cloudflare cached the "Not found" under
+// the new URL, so production had no theme button until it was purged.
 function notFound(res) {
-  res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+  res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end('Not found');
 }
 
