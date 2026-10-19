@@ -50,13 +50,53 @@ export function headerHtml(box) {
 		box.attendance && `Att: ${box.attendance.toLocaleString('en-US')}`,
 		box.broadcast && esc(box.broadcast),
 	].filter(Boolean).join(' · ');
+	const day = gameDayLine(box);
 	// Before kickoff ESPN's status is the start time in Eastern ("10/18 -
 	// 8:20 PM EDT"), which next to the meta line's local time reads as a
 	// second, different kickoff. The meta line says it already.
 	const status = box.live
 		? `<div class="game-status-line game-status-live"><span class="live-indicator-small"></span>${esc(box.status)}</div>`
 		: box.state === 'pre' ? '' : `<div class="game-status-line">${esc(box.status)}</div>`;
-	return `<div class="game-header">${teamHtml(away, 'away')}<div class="game-at">@</div>${teamHtml(home, 'home')}</div>${status}<div class="game-meta">${meta}</div>`;
+	return `<div class="game-header">${teamHtml(away, 'away')}<div class="game-at">@</div>${teamHtml(home, 'home')}</div>${status}<div class="game-meta">${meta}</div>`
+		+ (day ? `<div class="game-meta game-day">${day}</div>` : '');
+}
+
+const ROOF = { outdoors: 'Outdoors', dome: 'Dome', closed: 'Roof closed', open: 'Roof open' };
+
+/** The day as nflverse recorded it: roof, surface, weather, referee. Past
+ *  games only; the games CSV has them from 1999. Weather only outdoors,
+ *  where nflverse records it. */
+export function gameDayLine(box) {
+	const d = box.gameDay;
+	if (!d) return '';
+	const weather = [d.temp && `${d.temp}°F`, d.wind && d.wind !== '0' ? `wind ${d.wind} mph` : ''].filter(Boolean).join(', ');
+	return [
+		d.roof && esc(ROOF[d.roof] || d.roof),
+		d.surface && esc(d.surface.replace(/^./, (c) => c.toUpperCase())),
+		weather && esc(weather),
+		d.referee && `Referee ${esc(d.referee)}`,
+	].filter(Boolean).join(' · ');
+}
+
+/** What ESPN's record of a finished game lacks, as a sentence, or ''. */
+export function missingNote(box) {
+	const c = box.coverage;
+	if (!c || !box.final) return '';
+	const missing = [!c.quarters && 'the score by quarter', !c.scoring && 'every scoring play', !c.drives && 'the drives'].filter(Boolean);
+	if (!missing.length) return '';
+	const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(', ')} or ${missing.at(-1)}`;
+	return `<p class="game-missing">ESPN's record of this game does not have ${list}.</p>`;
+}
+
+/** Which sections came from nflverse's play-by-play, where ESPN's record
+ *  lacked them, as a sentence crediting it (CC BY 4.0 asks for that), or ''. */
+export function filledNote(box) {
+	const names = { quarters: 'the score by quarter', scoring: 'the scoring plays', drives: 'the drives' };
+	const parts = (box.filled || []).map((p) => names[p]).filter(Boolean);
+	if (!parts.length) return '';
+	const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
+	const cap = list[0].toUpperCase() + list.slice(1);
+	return `<p class="game-missing">${cap} from <a href="https://github.com/nflverse/nflverse-data" target="_blank" rel="noopener noreferrer">nflverse</a> play-by-play (CC BY 4.0), where ESPN's record of this game lacks ${parts.length === 1 ? 'it' : 'them'}.</p>`;
 }
 
 /** Down and distance, who has the ball and the last play, for a game in
@@ -168,10 +208,14 @@ export function gameSummaryHtml(box) {
 			+ ls.map((l) => `<div class="summary-leader"><span class="summary-leader-cat">${esc(l.title)}</span><span class="summary-leader-name">${esc(l.name)}</span><span class="summary-leader-line">${esc(l.line)}</span></div>`).join('')
 			+ '</div>';
 	}).join('');
-	const scoring = scoringList(box);
+	const scoring = has(box, 'scoring') ? scoringList(box) : '';
+	const day = gameDayLine(box);
 	return `${status}<div class="game-meta">${meta}</div>`
+		+ (day ? `<div class="game-meta game-day">${day}</div>` : '')
 		+ (box.drive ? fieldTrackerHtml(box) : situationHtml(box))
-		+ lineScoreTable(box)
+		+ missingNote(box)
+		+ filledNote(box)
+		+ (has(box, 'quarters') ? lineScoreTable(box) : '')
 		+ (leaders ? `<div class="summary-leaders-wrap">${leaders}</div>` : '')
 		+ (scoring ? `<h3 class="game-section-title">Scoring</h3>${scoring}` : '')
 		+ `<div class="summary-links"><a class="summary-box-link" href="/game/${esc(box.id)}">Full Box Score <i class="mdi mdi-arrow-right" aria-hidden="true"></i></a>`
@@ -240,9 +284,15 @@ export function gamePageHtml(box, selected = null) {
 		// A game in progress: the field with the drive under way, or, with no
 		// drive to draw, the plain situation line.
 		+ (box.drive ? section('Live', fieldTrackerHtml(box)) : situationHtml(box))
-		+ lineScoreHtml(box)
-		+ scoringHtml(box)
+		// A finished game's section that ESPN has only part of is left out,
+		// with a line saying so, rather than drawn as if it were the game.
+		+ missingNote(box)
+		+ filledNote(box)
+		+ (has(box, 'quarters') ? lineScoreHtml(box) : '')
+		+ (has(box, 'scoring') ? scoringHtml(box) : '')
 		+ teamStatsHtml(box)
 		+ teamTabsHtml(box, selected)
-		+ drivesHtml(box);
+		+ (has(box, 'drives') ? drivesHtml(box) : '');
 }
+
+const has = (box, part) => !box.coverage || box.coverage[part];

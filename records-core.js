@@ -57,12 +57,46 @@ export function parseGames(raw) {
 		scoreFor: r.packers_score,
 		scoreAgainst: r.opponent_score,
 		location: r.location,
+		// ESPN's id for the game's box score page, and the game-day details
+		// nflverse records; all empty before 1999.
+		espnId: r.espn_id || '',
+		stadium: r.stadium || '',
+		roof: r.roof || '',
+		surface: r.surface || '',
+		temp: r.temp || '',
+		wind: r.wind || '',
+		referee: r.referee || '',
 	}));
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // 'YYYY-MM-DD' -> 'Oct 23, 1966' without Date() timezone pitfalls.
+/**
+ * The season being played: an NFL season is named for the year it starts,
+ * and its January and February games belong to the year before. Shared by
+ * the page and the server, which both read a past season from the games CSV
+ * and the season being played from ESPN. The CSV holds the season being
+ * played too once its games are in, and reading it from there showed it as
+ * finished: no games to come, no live game, a "finished 3-2" title.
+ */
+export function seasonBeingPlayed(now = new Date()) {
+	return now.getMonth() <= 1 ? now.getFullYear() - 1 : now.getFullYear();
+}
+
+/**
+ * Every game, with the season being played counted from ESPN: `current` (its
+ * rows, parsed like the CSV's, from /api/current/games.csv) replaces the
+ * CSV's rows for `season`. The CSV holds some of that season too, once
+ * regenerated, and appending would count those games twice. With no
+ * `current` (ESPN unreachable) the CSV's rows stand, as far as they go.
+ */
+export function poolCurrentSeason(games, current, season) {
+	if (!current) return games;
+	const s = String(season);
+	return [...games.filter((g) => String(g.season) !== s), ...current];
+}
+
 export function formatDate(iso) {
 	const [y, m, d] = iso.split('-').map((n) => parseInt(n, 10));
 	return `${MONTHS[m - 1]} ${d}, ${y}`;

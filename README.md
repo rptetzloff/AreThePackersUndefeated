@@ -66,13 +66,23 @@ From 1100px the page splits into two columns: the answer and the season's story 
 
 Each played or live game on the schedule has three links: **Summary**, **Box** (its own page) and ESPN's. A click anywhere else on the row also opens the summary: a pop-up with the status, date, stadium, crowd and network, the score by quarter, each side's top passer, rusher and receiver, every scoring play, and the way on to the full box score. It is built from the same reduced box score as the game page, so opening it costs about 15KB.
 
+## Player Stats
+
+`/stats` has every Packers player's season since 1999, a table per category (passing, rushing, receiving, defense, kicking, punting, returns), for the regular season, the playoffs or both, and the leaders: single-season, and Packers career since 1999. The numbers are nflverse's weekly player stats (CC BY 4.0), summed by `stats-core.js`; rates are computed from the totals and left empty with no attempts, and the passer rating is the league's formula.
+
+Every player has a page at `/player/<nflverse id>`: a table per category he has stats in, a row a season with his Packers career since 1999 beneath, and a game log for any of his seasons. Names on the Stats page link to it, and a search box on the Stats page finds any of the 646 players since 1999.
+
+`update-data.js` writes `data/packers_player_games.csv`, one row per player per game, 1999 on (about 1.4MB). The season being played comes from nflverse at runtime, refreshed every six hours, as its games come from ESPN; the committed rows are its fallback.
+
+Two limits, both said on the page: nflverse has no player stats before 1999, so a career that began earlier (Brett Favre's, from 1992) is counted from 1999; and its stats are built from play-by-play, which now and then misses or misattributes a play, so a total can differ from the official one by a play (Aaron Rodgers's 2011 is one 7-yard completion short).
+
 ## Game Pages
 
 `/game/<ESPN event id>` is a game's box score: both teams with records and the score, where it was played and the crowd, the score by quarter, every scoring play under its quarter with the running score, the team stats side by side, each team's player tables (passing, rushing, receiving, fumbles, defense, interceptions, returns, kicking, punting) behind a tab per team, away on the left and the Packers' open, and the drives. Every section is under a plain heading; nothing is collapsed. A game in progress adds who has the ball, down and distance and the last play, and redraws every 15 seconds until it is final.
 
 The server boils ESPN's game summary (about 600KB) down to about 15KB (`lib/espn-box.js`) and serves it at `/api/boxscore/<id>`; the page draws it (`game-core.js`). The page's title and link preview carry the score.
 
-Only games ESPN has an id for get a page: this season's, from the schedule. Past seasons come from the CSV, which has no ESPN ids, so their rows have no Box link yet.
+Every game from 1999 on has a page. This season's ids come from ESPN's schedule; a past season's from the games CSV, whose `espn_id` column `update-data.js` takes from nflverse's games.csv, which has one for every Packers game it lists. Past games' pages also show the day as nflverse recorded it (roof, surface, temperature, wind, referee) and its date, stadium and final score where ESPN's are missing or wrong (ESPN has one 2001 game as 0–0). ESPN's older records are patchy game by game: a section it has only part of (scoring plays that do not add up to the final score, a handful of drives) is filled from nflverse's play-by-play (CC BY 4.0), and the page says which sections came from there. `update-data.js` builds them with `lib/game-details.js` into `data/packers_game_details.json`, one game per line keyed by ESPN id, fetching only seasons with a past game it lacks; a game whose play-by-play does not add up to its final score is left out (one, Green Bay at Jacksonville in 2001), and its page keeps ESPN's record and says what that lacks. Before 1999 there is no box score, and no Box link.
 
 Every page has a light and a dark theme. A button in the footer steps through System (follow the device), Light and Dark, and a choice is remembered; it is applied before the page paints, so a light page never flashes green. Dark is the site as it always was. The field tracker, the history chart and the champions panel keep their colours in both.
 
@@ -108,11 +118,13 @@ npm run update-data
 
 This fetches `games.csv` from the nflverse-data releases, extracts all completed Packers games from 1999 onward, merges them with the pre-1999 FiveThirtyEight base data, and rewrites both CSV files in place.
 
-### Automatic updates via GitHub Actions
+### The season being played, and the weekly check
 
-A workflow at `.github/workflows/update-data.yml` runs `npm run update-data` automatically every Tuesday at 10:00 UTC (covers Monday night games). If either CSV changes, the workflow commits and pushes the updated files.
+The CSV does not need to be current for the site to be. The season being played is counted from ESPN at runtime: the server turns its schedule into rows of the games CSV (`lib/current-season.js`, at `/api/current/games.csv`), and head-to-head, records, history and coaches, on the pages and in their social cards, count them in place of the CSV's rows for that season. Between games those results are computed once; a deploy or restart recomputes them from one ESPN request. If ESPN cannot be reached and nothing is cached, they count the CSV alone, which lags the season by however long since it was last updated.
 
-To trigger a manual run at any time, go to **Actions → Update Packers Data → Run workflow**.
+The CSV holds every season before that one and is updated by hand, with a pull request, when convenient and certainly once the season ends. It used to be committed weekly by a workflow, which stopped working in September 2026 when `main` began requiring pull requests.
+
+`.github/workflows/update-data.yml` is now a check: every Tuesday at 10:00 UTC it regenerates the data from `dev`, runs the tests against it, and says in the run's summary whether the committed CSV is behind and by which games. It never commits. Run it at any time from **Actions → Check Packers Data → Run workflow**.
 
 The workflow uses the built-in `GITHUB_TOKEN`. Make sure your repository's Actions settings allow write access: **Settings → Actions → General → Workflow permissions → Read and write permissions**.
 
@@ -157,6 +169,7 @@ lib/seasons.js       # per-season record from CSV + live ESPN feed
 lib/espn-target.js   # allowlist of ESPN endpoints the proxy may fetch
 lib/espn-proxy.js    # cache in front of ESPN, lifetime chosen per response
 lib/espn-box.js      # a game's box score, reduced from ESPN's summary
+lib/game-details.js  # a past game's quarters, scoring and drives from nflverse pbp
 lib/records.js       # records/superlatives data + meta for /records routes
 lib/h2h.js           # head-to-head data + meta for /vs routes
 records-core.js      # shared superlative computation (browser + node)
