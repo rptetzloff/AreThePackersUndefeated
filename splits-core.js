@@ -29,7 +29,27 @@ export function splitsGame(r) {
 		spread: num(r.spread),
 		qbId: r.qbId || '', qb: r.qb || '',
 		oppQbId: r.oppQbId || '', oppQb: r.oppQb || '',
+		stadium: r.stadium || '',
+		place: placeOf(r.stadiumId),
 	};
+}
+
+// A game's country from nflverse's stadium code, which begins with the city:
+// every code not listed is in the United States. FRA is Frankfurt, not
+// France; Paris is PAR.
+const ABROAD = {
+	LON: ['England', 'London'], MEX: ['Mexico', 'Mexico City'],
+	SAO: ['Brazil', 'São Paulo'], RIO: ['Brazil', 'Rio de Janeiro'],
+	GER: ['Germany', 'Munich'], MUN: ['Germany', 'Munich'], FRA: ['Germany', 'Frankfurt'],
+	MAD: ['Spain', 'Madrid'], PAR: ['France', 'Paris'], MEL: ['Australia', 'Melbourne'],
+	TOR: ['Canada', 'Toronto'],
+};
+
+/** A game's country and, abroad, its city; null where nflverse has no code. */
+export function placeOf(stadiumId) {
+	if (!stadiumId) return null;
+	const [country, city] = ABROAD[stadiumId.slice(0, 3)] || ['United States', ''];
+	return { country, city };
 }
 
 /** Thanksgiving: the fourth Thursday of November. */
@@ -120,9 +140,23 @@ export function splitStats(rows, { minFaced = 3 } = {}) {
 		.map((q) => ({ id: q.id, name: q.name, ...span(q.games), ...tally(q.games), opponents: [...new Set(q.games.map((g) => g.opponent))] }))
 		.sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
 
+	// Each country played in, the most games first; abroad, each game too.
+	const byCountry = new Map();
+	for (const g of games.filter((x) => x.place)) {
+		if (!byCountry.has(g.place.country)) byCountry.set(g.place.country, []);
+		byCountry.get(g.place.country).push(g);
+	}
+	const countries = [...byCountry].map(([country, gs]) => ({
+		label: country,
+		note: country === 'United States' ? '' : [...new Set(gs.map((g) => g.place.city))].join(', '),
+		...tally(gs),
+		abroad: country === 'United States' ? [] : gs.map((g) => ({ date: g.date, opponent: g.opponent, stadium: g.stadium, city: g.place.city, result: g.result, pf: g.pf, pa: g.pa, espnId: g.espnId })),
+	})).sort((a, b) => b.games - a.games || a.label.localeCompare(b.label));
+
 	return {
 		range: span(games),
 		games: games.length,
+		countries,
 		when: rowsOf(WHEN, games),
 		close: rowsOf(CLOSE, games),
 		line: rowsOf(LINE, games, true),

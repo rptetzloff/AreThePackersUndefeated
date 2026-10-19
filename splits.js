@@ -3,7 +3,7 @@
 // sides, from /api/splits (splits-core.js, built on the server from the
 // games CSV's nflverse columns and nflverse's schedules for the season being
 // played).
-import { esc } from './records-core.js';
+import { esc, formatDate } from './records-core.js';
 import { shareButtonsHtml, wireShareRow, wireShareDropdown } from './share-core.js';
 import { sortItems, wireSortHeaders } from './sortable.js';
 
@@ -43,6 +43,11 @@ async function init() {
 		document.getElementById('splits-subtitle').textContent =
 			`Green Bay Packers · ${d.range.first}–${d.range.last} · ${d.games} games`;
 		whenEl.innerHTML = situationsTable(d.when);
+		// Each country, then every game abroad, linked to its box score.
+		document.getElementById('splits-countries').innerHTML = situationsTable(d.countries);
+		document.getElementById('splits-abroad').innerHTML = d.countries.flatMap((c) => c.abroad).sort((a, b) => (a.date < b.date ? -1 : 1))
+			.map((g) => `<li>${g.espnId ? `<a href="/game/${esc(g.espnId)}">${esc(formatDate(g.date))}</a>` : esc(formatDate(g.date))}
+				vs ${esc(g.opponent)} · ${esc(g.stadium)}, ${esc(g.city)} · <span class="stadiums-score">${g.result} ${g.pf}–${g.pa}</span></li>`).join('');
 		document.getElementById('splits-close').innerHTML = situationsTable(d.close);
 		document.getElementById('splits-line').innerHTML = situationsTable([...d.line, d.lineAll], { ats: true });
 

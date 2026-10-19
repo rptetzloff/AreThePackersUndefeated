@@ -77,6 +77,7 @@ export function parseGames(raw) {
 		qb: r.qb || '',
 		oppQbId: r.opponent_qb_id || '',
 		oppQb: r.opponent_qb || '',
+		stadiumId: r.stadium_id || '',
 	}));
 }
 

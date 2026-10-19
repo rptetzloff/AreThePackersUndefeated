@@ -1874,6 +1874,23 @@ details:not([open]) > .collapsible-summary::before {
     flex: 1;
 }
 
+/* The Splits page's games abroad, under the country table. */
+.splits-abroad {
+    list-style: none;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    font-size: 0.85rem;
+    color: rgb(var(--fg-rgb) / 0.75);
+}
+
+.splits-abroad li + li {
+    margin-top: 0.3rem;
+}
+
+.splits-abroad a {
+    color: var(--accent-text);
+}
+
 /* A quarterback's record as the starter, under his name on the player page. */
 .player-starts {
     text-align: center;

@@ -126,8 +126,9 @@ Rules the page follows:
 
 ## Splits
 
-`/splits` is the Packers' record since 1999, split five ways:
+`/splits` is the Packers' record since 1999, split six ways:
 - **When they play:** Sunday early, late afternoon and night, Monday night, Thursday, Saturday, Thanksgiving and Christmas. Kickoff times are Eastern, as nflverse records them.
+- **By country:** the record in each country played in, with every game abroad listed and linked to its box score. Since 1999 there are two: London (2022) and São Paulo (2024). The country comes from nflverse's stadium code, which begins with the city (`LON02`, `SAO00`); `FRA` is Frankfurt, and Paris is `PAR`.
 - **Close games, blowouts and the division:** overtime, games decided by 3 or fewer, one-score games, games decided by 21 or more, and division games against everyone else.
 - **The point spread:** favored or underdog, by less than 7 or by 7 or more, each with the straight-up record and the record against the closing line. Landing on the number is a push.
 - **Packers starting quarterbacks:** each starter's regular-season and playoff record, linked to his player page, which also shows his record as the starter.

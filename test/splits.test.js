@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseGames } from '../records-core.js'
 import { parseCsv, mapNflverseRow } from '../lib/nflverse-games.js'
-import { splitsGame, isThanksgiving, atsResult, splitStats, starterRecord } from '../splits-core.js'
+import { splitsGame, isThanksgiving, atsResult, splitStats, starterRecord, placeOf } from '../splits-core.js'
 
 // A parseGames row: the 2010 NFC Championship at Chicago, favored by 3.5.
 const row = (o = {}) => ({
@@ -90,4 +90,20 @@ test("the season being played from nflverse's schedules carries the new columns"
 	].join('\n')
 	const [m] = parseCsv(csv).map(mapNflverseRow)
 	assert.deepEqual([m.weekday, m.gametime, m.overtime, m.div_game, m.spread, m.qb, m.opponent_qb], ['Sunday', '20:20', '0', '0', '-1.5', 'Jordan Love', 'Dak Prescott'])
+})
+
+test("a game's country from nflverse's stadium code: FRA is Frankfurt, Paris is PAR", () => {
+	assert.deepEqual(placeOf('LON02'), { country: 'England', city: 'London' })
+	assert.deepEqual(placeOf('SAO00'), { country: 'Brazil', city: 'São Paulo' })
+	assert.deepEqual(placeOf('FRA00'), { country: 'Germany', city: 'Frankfurt' })
+	assert.deepEqual(placeOf('PAR00'), { country: 'France', city: 'Paris' })
+	assert.deepEqual(placeOf('GNB00'), { country: 'United States', city: '' })
+	assert.equal(placeOf(''), null)
+})
+
+test('every game is in one country, and the two abroad are London and São Paulo', () => {
+	assert.equal(s.countries.reduce((n, c) => n + c.games, 0), s.games)
+	assert.equal(s.countries[0].label, 'United States')
+	const abroad = s.countries.flatMap((c) => c.abroad).sort((a, b) => (a.date < b.date ? -1 : 1))
+	assert.deepEqual(abroad.map((g) => [g.date, g.city, g.result]), [['2022-10-09', 'London', 'L'], ['2024-09-06', 'São Paulo', 'L']])
 })

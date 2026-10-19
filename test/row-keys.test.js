@@ -93,6 +93,6 @@ test('parseGames produces the neutral keys and none of the CSV ones', () => {
 		'Opponent', 'championship', 'date', 'division', 'espnId', 'kickoff', 'location',
 		'oppQb', 'oppQbId', 'overtime', 'playoff', 'qb', 'qbId',
 		'referee', 'regular_season', 'result', 'roof', 'scoreAgainst', 'scoreFor',
-		'season', 'spread', 'stadium', 'surface', 'temp', 'weekday', 'wind',
+		'season', 'spread', 'stadium', 'stadiumId', 'surface', 'temp', 'weekday', 'wind',
 	])
 })
