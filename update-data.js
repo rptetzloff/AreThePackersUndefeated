@@ -15,7 +15,8 @@
 import { createWriteStream, readFileSync, writeFileSync } from 'fs';
 import https from 'https';
 import { gunzipSync } from 'zlib';
-import { splitCsvLine } from './records-core.js';
+import { splitCsvLine, seasonBeingPlayed } from './records-core.js';
+import { gameDetails, addsUp, PBP_COLUMNS } from './lib/game-details.js';
 import { packersPlayerRows, playerRowsToCsv } from './lib/player-stats.js';
 
 const NFLVERSE_URL =
@@ -276,6 +277,69 @@ async function main() {
     console.log(`Latest season: ${maxSeason} (${completed.length} completed games)`);
 
     await updatePlayerGames(maxSeason);
+    await updateGameDetails(nflverseRows);
+}
+
+// Each past Packers game's quarters, scoring plays and drives, from
+// nflverse's play-by-play (lib/game-details.js), for the box score sections
+// ESPN's older records lack. A season's file is 12-18MB gzipped, every team's
+// plays, so only seasons with a Packers game not yet in the file are
+// fetched: a finished game's play-by-play does not change, and fetching all
+// 28 seasons every run would be 400MB a week for the check workflow. The
+// season being played is left out; its box scores come from ESPN whole.
+const PBP_URL = (season) =>
+    `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${season}.csv.gz`;
+const DETAILS_FILE = './data/packers_game_details.json';
+
+async function updateGameDetails(nflverseRows) {
+    let details = {};
+    try { details = JSON.parse(readFileSync(DETAILS_FILE, 'utf8')); } catch { /* first run */ }
+    const playing = seasonBeingPlayed();
+    // nflverse game_id -> ESPN id, for every finished Packers game before
+    // the season being played.
+    const wanted = new Map();
+    for (const r of nflverseRows) {
+        if (r.home_team !== 'GB' && r.away_team !== 'GB') continue;
+        if (!r.espn || r.espn === 'NA' || r.home_score === '' || r.home_score === 'NA') continue;
+        if (Number(r.season) >= playing) continue;
+        wanted.set(r.game_id, { espn: r.espn, season: Number(r.season), away: r.away_score, home: r.home_score });
+    }
+    const seasons = [...new Set([...wanted.values()].filter(g => !details[g.espn]).map(g => g.season))].sort((a, b) => a - b);
+    if (!seasons.length) {
+        console.log(`Game details: all ${wanted.size} games present`);
+        return;
+    }
+    for (const season of seasons) {
+        const text = gunzipSync(await fetchBuffer(PBP_URL(season))).toString('utf8');
+        const lines = text.split('\n');
+        const head = splitCsvLine(lines[0]);
+        const at = PBP_COLUMNS.map(c => head.indexOf(c));
+        if (at.includes(-1)) throw new Error(`play_by_play_${season} is missing ${PBP_COLUMNS.filter((c, i) => at[i] < 0).join(', ')}`);
+        const byGame = new Map();
+        for (const line of lines.slice(1)) {
+            if (!line.includes('GB')) continue; // most lines are other games
+            const v = splitCsvLine(line);
+            const id = v[at[0]];
+            if (!wanted.has(id)) continue;
+            const play = Object.fromEntries(PBP_COLUMNS.map((c, i) => [c, v[at[i]] === 'NA' ? '' : (v[at[i]] ?? '')]));
+            (byGame.get(id) || byGame.set(id, []).get(id)).push(play);
+        }
+        for (const [id, plays] of byGame) {
+            const d = gameDetails(plays);
+            const g = wanted.get(id);
+            // Kept only if it adds up to the final score nflverse itself has
+            // for the game; one that does not is wrong somewhere, and the
+            // box score keeps ESPN's record instead.
+            if (d && addsUp(d, g.away, g.home)) details[g.espn] = { season, ...d };
+            else console.log(`  ${id}: play-by-play does not add up to ${g.away}-${g.home}; left out`);
+        }
+        console.log(`Game details ${season}: ${byGame.size} games`);
+    }
+    // One game a line, by id, so a regenerated file diffs by the games
+    // that changed.
+    const ids = Object.keys(details).sort();
+    writeFileSync(DETAILS_FILE, `{\n${ids.map(id => `${JSON.stringify(id)}: ${JSON.stringify(details[id])}`).join(',\n')}\n}\n`);
+    console.log(`Wrote ${DETAILS_FILE} (${ids.length} games)`);
 }
 
 // Every Packers player's stats, game by game, 1999 on, from nflverse's
