@@ -1,6 +1,7 @@
         import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml } from './records-core.js';
 import { SITE } from './site.js';
 import { scheduleListHtml, monthChipsHtml } from './schedule-core.js';
+import { withScoreboard } from './scoreboard-core.js';
 import { gameSummaryHtml, gameTitle } from './game-core.js';
 import { seasonVerdict } from './lib/season-state.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
@@ -20,6 +21,7 @@ import { seasonVerdict } from './lib/season-state.js';
         class PackersTracker {
         	constructor() {
         		this.apiUrl = '/api/espn/apis/site/v2/sports/football/nfl/teams/gb/schedule';
+        		this.scoreboardUrl = '/api/espn/apis/site/v2/sports/football/nfl/scoreboard';
         		this.countdownInterval = null;
         		this.liveUpdateInterval = null;
         		this.currentSeason = null;
@@ -240,10 +242,15 @@ async fetchPackersData(season) {
 
  try {
      const seasonParam = season ? `&season=${season}` : '';
-     const [preRes, regularRes, postRes] = await Promise.all([
+     // The season being played also reads this week's scoreboard, which
+     // knows a game is live minutes before the team schedule does
+     // (scoreboard-core.js). A past season's games are all settled.
+     const current = !season || season === this.latestSeason;
+     const [preRes, regularRes, postRes, scoreboard] = await Promise.all([
         fetch(`${this.apiUrl}?seasontype=1${seasonParam}`),
         fetch(`${this.apiUrl}?seasontype=2${seasonParam}`),
         fetch(`${this.apiUrl}?seasontype=3${seasonParam}`),
+        current ? fetch(this.scoreboardUrl).then((r) => (r.ok ? r.json() : null)).catch(() => null) : null,
     ]);
      const [preData, regularData, postData] = await Promise.all([
         preRes.json(),
@@ -254,7 +261,7 @@ async fetchPackersData(season) {
      const preEvents = (preData.events || []).map(e => ({ ...e, _seasonType: 'pre' }));
      const regularEvents = (regularData.events || []).map(e => ({ ...e, _seasonType: 'regular' }));
      const postEvents = (postData.events || []).map(e => ({ ...e, _seasonType: 'post' }));
-     const allEvents = [...preEvents, ...regularEvents, ...postEvents];
+     const allEvents = withScoreboard([...preEvents, ...regularEvents, ...postEvents], scoreboard);
 
      const mergedData = { ...regularData, events: allEvents };
 
@@ -264,10 +271,9 @@ async fetchPackersData(season) {
         return;
     }
 
-    const liveGame = allEvents.find(event => {
-        const status = event.competitions?.[0]?.status?.type?.name;
-        return status === 'STATUS_IN_PROGRESS' || status === 'STATUS_HALFTIME' || status === 'STATUS_DELAYED';
-    });
+    // 'in' covers every in-game status — halftime, end of a quarter, a
+    // delay — where the list of names this used to check missed some.
+    const liveGame = allEvents.find(event => event.competitions?.[0]?.status?.type?.state === 'in');
 
     if (liveGame) {
         await this.fetchLiveGameScore(liveGame, mergedData);
@@ -758,16 +764,7 @@ markActiveMonth() {
              return gameDate > now && status === 'STATUS_SCHEDULED';
          });
 
-          const liveGame = sortedEvents.find(event => {
-             const status = event.competitions?.[0]?.status?.type?.name;
-             return status === 'STATUS_IN_PROGRESS' ||
-             status === 'STATUS_HALFTIME' ||
-             status === 'STATUS_DELAYED' ||
-             status === 'STATUS_BREAK' ||
-             status === 'STATUS_TIMEOUT' ||
-             status === 'STATUS_END_PERIOD' ||
-             status === 'STATUS_RAIN_DELAY';
-         });
+          const liveGame = sortedEvents.find(event => event.competitions?.[0]?.status?.type?.state === 'in');
 
           const rows = sortedEvents.map((event) => this.espnScheduleRow(event, nextGame, liveGame, isPastSeason));
           // The live game, else the next one, as the full card above the list:
