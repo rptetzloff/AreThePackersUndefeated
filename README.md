@@ -108,11 +108,13 @@ npm run update-data
 
 This fetches `games.csv` from the nflverse-data releases, extracts all completed Packers games from 1999 onward, merges them with the pre-1999 FiveThirtyEight base data, and rewrites both CSV files in place.
 
-### Automatic updates via GitHub Actions
+### The season being played, and the weekly check
 
-A workflow at `.github/workflows/update-data.yml` runs `npm run update-data` automatically every Tuesday at 10:00 UTC (covers Monday night games). If either CSV changes, the workflow commits and pushes the updated files.
+The CSV does not need to be current for the site to be. The season being played is counted from ESPN at runtime: the server turns its schedule into rows of the games CSV (`lib/current-season.js`, at `/api/current/games.csv`), and head-to-head, records, history and coaches, on the pages and in their social cards, count them in place of the CSV's rows for that season. Between games those results are computed once; a deploy or restart recomputes them from one ESPN request. If ESPN cannot be reached and nothing is cached, they count the CSV alone, which lags the season by however long since it was last updated.
 
-To trigger a manual run at any time, go to **Actions → Update Packers Data → Run workflow**.
+The CSV holds every season before that one and is updated by hand, with a pull request, when convenient and certainly once the season ends. It used to be committed weekly by a workflow, which stopped working in September 2026 when `main` began requiring pull requests.
+
+`.github/workflows/update-data.yml` is now a check: every Tuesday at 10:00 UTC it regenerates the data from `dev`, runs the tests against it, and says in the run's summary whether the committed CSV is behind and by which games. It never commits. Run it at any time from **Actions → Check Packers Data → Run workflow**.
 
 The workflow uses the built-in `GITHUB_TOKEN`. Make sure your repository's Actions settings allow write access: **Settings → Actions → General → Workflow permissions → Read and write permissions**.
 

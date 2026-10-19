@@ -3,7 +3,8 @@
 // (records-core.js). Multiple metrics can be plotted at once, playoffs can be
 // folded in, coach-era strips carry each coach's record, hover shows a
 // season's numbers, and clicking a season opens its page.
-import { parseGames, computeSeasonHistory, historyCopy } from './records-core.js';
+import { computeSeasonHistory, historyCopy } from './records-core.js';
+import { loadGames } from './games-client.js';
 import { parseCoachesCsv, computeCoaches } from './coaches-core.js';
 import { buildChartSvg, METRICS } from './history-chart.js';
 import { shareButtonsHtml, wireShareRow, wireShareDropdown } from './share-core.js';
@@ -76,12 +77,12 @@ function render(history, coaches, metrics) {
 
 async function init() {
 	try {
-		const [gamesRes, coachesRes] = await Promise.all([
-			fetch('/data/packers_games.csv'),
+		// The season being played counts, from ESPN (games-client.js).
+		const [{ games: rows }, coachesRes] = await Promise.all([
+			loadGames(),
 			fetch('/data/packers_coaches.csv'),
 		]);
-		if (!gamesRes.ok || !coachesRes.ok) throw new Error('CSV fetch failed');
-		const rows = parseGames(await gamesRes.text());
+		if (!coachesRes.ok) throw new Error('CSV fetch failed');
 		const histories = {
 			regular: computeSeasonHistory(rows),
 			playoffs: computeSeasonHistory(rows, { playoffs: true }),

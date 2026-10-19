@@ -1,7 +1,8 @@
 // Records & Superlatives page: computes superlatives from the games CSV
 // (records-core.js, shared with the server) and renders one shareable card each.
 import { SITE } from './site.js';
-import { parseGames, computeSuperlatives, recordsCopy, formatDate, RECORD_SLUGS, esc } from './records-core.js';
+import { computeSuperlatives, recordsCopy, formatDate, RECORD_SLUGS, esc } from './records-core.js';
+import { loadGames } from './games-client.js';
 import { shareButtonsHtml, wireShareRow } from './share-core.js';
 
 const yearLink = (yr) => `<a href="/${yr}">${yr}</a>`;
@@ -151,9 +152,9 @@ function requestedSlug() {
 async function init() {
 	const grid = document.getElementById('records-grid');
 	try {
-		const res = await fetch('/data/packers_games.csv');
-		if (!res.ok) throw new Error(`CSV fetch failed: ${res.status}`);
-		const data = computeSuperlatives(parseGames(await res.text()));
+		// The season being played counts, from ESPN (games-client.js).
+		const { games } = await loadGames();
+		const data = computeSuperlatives(games);
 		document.getElementById('records-subtitle').textContent =
 			`Green Bay Packers · ${data.seasonRange.first}–${data.seasonRange.last}`;
 		// The manifest decides which cards this deployment publishes, and in

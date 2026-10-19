@@ -11,10 +11,12 @@ import { dirname, join, normalize, extname } from 'node:path';
 import { renderPng, renderRecordsPng, renderH2hPng, renderHistoryPng, renderCoachesPng } from './lib/cards.js';
 import { originOf } from './lib/origin.js';
 import { getSeasonState, defaultSeason, allGames } from './lib/seasons.js';
-import { records, recordsMeta, isRecordSlug, seasonHistory, historyMeta } from './lib/records.js';
-import { coaches, coachesMeta } from './lib/coaches.js';
-import { h2h, h2hMeta, isOpponentSlug } from './lib/h2h.js';
-import { esc } from './records-core.js';
+import { recordsMeta, isRecordSlug, historyMeta } from './lib/records.js';
+import { coachesMeta } from './lib/coaches.js';
+import { h2hMeta, isOpponentSlug } from './lib/h2h.js';
+import { derive } from './lib/derived.js';
+import { currentSeasonRows, rowsToCsv } from './lib/current-season.js';
+import { esc, parseGames, poolCurrentSeason, seasonBeingPlayed } from './records-core.js';
 import { espnTarget } from './lib/espn-target.js';
 import { createEspnCache, browserMaxAge } from './lib/espn-proxy.js';
 import { espnBoxscore, withGameDay } from './lib/espn-box.js';
@@ -149,32 +151,77 @@ async function serveHtml(req, res, season) {
   sendPage(res, INDEX_VERSIONED, { title, desc, img: `${origin}/og/${state.season}.png`, canonical });
 }
 
+// The season being played, from ESPN's schedule through the proxy's cache
+// (lib/current-season.js): its completed games as CSV text, and a version
+// that changes when they do. Null when ESPN cannot be reached and nothing
+// is cached; everything then counts the CSV alone.
+let currentMemo = null; // { key, csv, rows }
+async function currentSeason() {
+  const season = seasonBeingPlayed();
+  const path = 'apis/site/v2/sports/football/nfl/teams/gb/schedule';
+  const [reg, post] = await Promise.all([
+    espn.get(espnTarget(path, `season=${season}&seasontype=2`)),
+    espn.get(espnTarget(path, `season=${season}&seasontype=3`)),
+  ]);
+  if (reg?.status !== 200) return null;
+  const key = `${season}|${reg.at}|${post?.status === 200 ? post.at : ''}`;
+  if (currentMemo?.key === key) return currentMemo;
+  try {
+    const rows = currentSeasonRows({
+      regular: JSON.parse(reg.body),
+      post: post?.status === 200 ? JSON.parse(post.body) : null,
+    }, season);
+    const csv = rowsToCsv(rows);
+    currentMemo = { key, csv, season, games: parseGames(csv), version: createHash('sha1').update(csv).digest('hex').slice(0, 12) };
+    return currentMemo;
+  } catch {
+    return null;
+  }
+}
+
+// Records, history, head-to-head and coaches for the games as they stand:
+// the CSV plus the season being played. Recomputed only when a game is
+// added (lib/derived.js).
+async function derivedNow() {
+  const cur = await currentSeason();
+  const games = cur ? poolCurrentSeason(allGames, cur.games, cur.season) : allGames;
+  return derive(games, cur?.version ?? 'csv');
+}
+
 // /records and /records/<slug>: same shell, per-slug meta + social card.
-function serveRecordsHtml(req, res, slug) {
+function serveRecordsHtml(req, res, slug, d) {
   const origin = originOf(req);
-  const { title, desc } = recordsMeta(slug);
+  const { title, desc } = recordsMeta(slug, d.records);
   const canonical = slug ? `${origin}/records/${slug}` : `${origin}/records`;
   const img = `${origin}/og/records/${slug || 'overview'}.png`;
   sendPage(res, RECORDS_VERSIONED, { title, desc, img, canonical });
 }
 
 // /vs and /vs/<opponent>: same shell, per-opponent meta + social card.
-function serveVsHtml(req, res, slug) {
+function serveVsHtml(req, res, slug, d) {
   const origin = originOf(req);
-  const { title, desc } = h2hMeta(slug);
+  const { title, desc } = h2hMeta(slug, d.h2h);
   const canonical = slug ? `${origin}/vs/${slug}` : `${origin}/vs`;
   const img = `${origin}/og/vs/${slug || 'overview'}.png`;
   sendPage(res, VS_VERSIONED, { title, desc, img, canonical });
 }
 
-// Records/h2h data is fixed for the lifetime of the process (CSV is read at
-// startup; updates arrive via redeploy), so render each card at most once.
-const staticImgCache = new Map(); // cache key -> buf
-function serveCachedPng(res, key, render) {
-  let buf = staticImgCache.get(key);
+// Each card is rendered at most once per version of the games: records,
+// history and head-to-head change when a game of the season being played
+// is added, and a card from before then would show the old numbers. Cards
+// of an older version are dropped as soon as a newer one is asked for.
+const staticImgCache = new Map(); // `${version}:${key}` -> buf
+let staticImgVersion = null;
+function serveCachedPng(res, key, render, version = 'static') {
+  if (version !== staticImgVersion && version !== 'static') {
+    for (const k of staticImgCache.keys()) if (!k.startsWith('static:')) staticImgCache.delete(k);
+    staticImgVersion = version;
+  }
+  const cacheKey = `${version}:${key}`;
+  let buf = staticImgCache.get(cacheKey);
   if (!buf) {
     buf = render();
-    staticImgCache.set(key, buf);
+    staticImgCache.set(cacheKey, buf);
   }
   res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' });
   res.end(buf);
@@ -331,13 +378,15 @@ const server = http.createServer(async (req, res) => {
     const ogRec = pathname.match(/^\/og\/records\/([a-z-]+)\.png$/);
     if (ogRec) {
       if (ogRec[1] !== 'overview' && !isRecordSlug(ogRec[1])) return notFound(res);
-      return serveCachedPng(res, `records:${ogRec[1]}`, () => renderRecordsPng(ogRec[1], records));
+      const d = await derivedNow();
+      return serveCachedPng(res, `records:${ogRec[1]}`, () => renderRecordsPng(ogRec[1], d.records), d.version);
     }
 
     const ogVs = pathname.match(/^\/og\/vs\/([a-z0-9-]+)\.png$/);
     if (ogVs) {
-      if (ogVs[1] !== 'overview' && !isOpponentSlug(ogVs[1])) return notFound(res);
-      return serveCachedPng(res, `vs:${ogVs[1]}`, () => renderH2hPng(ogVs[1], h2h));
+      const d = await derivedNow();
+      if (ogVs[1] !== 'overview' && !isOpponentSlug(ogVs[1], d.h2h)) return notFound(res);
+      return serveCachedPng(res, `vs:${ogVs[1]}`, () => renderH2hPng(ogVs[1], d.h2h), d.version);
     }
 
     const img = pathname.match(/^\/og\/(\d{4})\.png$/);
@@ -357,42 +406,60 @@ const server = http.createServer(async (req, res) => {
     const yr = pathname.match(/^\/(\d{4})\/?$/);
     if (yr) return await serveHtml(req, res, parseInt(yr[1], 10));
 
+    // The games CSV's rows for the season being played, from ESPN, for the
+    // pages to pool with the file (poolCurrentSeason in records-core.js).
+    // 503 when ESPN cannot be reached: the pages then count the file alone.
+    if (pathname === '/api/current/games.csv') {
+      const cur = await currentSeason();
+      if (!cur) {
+        res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+        return res.end('ESPN unreachable');
+      }
+      res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'public, max-age=60', 'X-Season': String(cur.season) });
+      return res.end(cur.csv);
+    }
+
     if (pathname === '/records' || pathname === '/records/' || pathname === '/records.html')
-      return serveRecordsHtml(req, res, undefined);
+      return serveRecordsHtml(req, res, undefined, await derivedNow());
     if (pathname.startsWith('/records/')) {
       // Only exact known slugs get the page; anything else (bad case, extra
       // segments) must 404, not fall through to the homepage SPA fallback.
       const slug = pathname.slice('/records/'.length).replace(/\/$/, '');
       if (!isRecordSlug(slug)) return notFound(res);
-      return serveRecordsHtml(req, res, slug);
+      return serveRecordsHtml(req, res, slug, await derivedNow());
     }
 
     if (pathname === '/history' || pathname === '/history/' || pathname === '/history.html') {
       const origin = originOf(req);
-      const { title, desc } = historyMeta();
+      const { title, desc } = historyMeta((await derivedNow()).seasonHistory);
       return sendPage(res, HISTORY_VERSIONED, {
         title, desc, img: `${origin}/og/history.png`, canonical: `${origin}/history`,
       });
     }
-    if (pathname === '/og/history.png')
-      return serveCachedPng(res, 'history', () => renderHistoryPng(seasonHistory));
+    if (pathname === '/og/history.png') {
+      const d = await derivedNow();
+      return serveCachedPng(res, 'history', () => renderHistoryPng(d.seasonHistory), d.version);
+    }
 
     if (pathname === '/coaches' || pathname === '/coaches/' || pathname === '/coaches.html') {
       const origin = originOf(req);
-      const { title, desc } = coachesMeta();
+      const { title, desc } = coachesMeta((await derivedNow()).coaches);
       return sendPage(res, COACHES_VERSIONED, {
         title, desc, img: `${origin}/og/coaches.png`, canonical: `${origin}/coaches`,
       });
     }
-    if (pathname === '/og/coaches.png')
-      return serveCachedPng(res, 'coaches', () => renderCoachesPng(coaches));
+    if (pathname === '/og/coaches.png') {
+      const d = await derivedNow();
+      return serveCachedPng(res, 'coaches', () => renderCoachesPng(d.coaches), d.version);
+    }
 
     if (pathname === '/vs' || pathname === '/vs/' || pathname === '/vs.html')
-      return serveVsHtml(req, res, undefined);
+      return serveVsHtml(req, res, undefined, await derivedNow());
     if (pathname.startsWith('/vs/')) {
       const slug = pathname.slice('/vs/'.length).replace(/\/$/, '');
-      if (!isOpponentSlug(slug)) return notFound(res);
-      return serveVsHtml(req, res, slug);
+      const d = await derivedNow();
+      if (!isOpponentSlug(slug, d.h2h)) return notFound(res);
+      return serveVsHtml(req, res, slug, d);
     }
 
     return await serveStatic(req, res, pathname);

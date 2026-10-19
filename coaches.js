@@ -2,7 +2,8 @@
 // record, computed from the shared coaches-core.js (games assigned to
 // tenures by exact dates, so mid-season changes split correctly). Columns
 // sort on click; coach photos open in the site's lightbox.
-import { parseGames, computeSeasonHistory, esc } from './records-core.js';
+import { computeSeasonHistory, esc } from './records-core.js';
+import { loadGames } from './games-client.js';
 import { parseCoachesCsv, computeCoaches, coachesCopy } from './coaches-core.js';
 import { shareButtonsHtml, wireShareRow, wireShareDropdown } from './share-core.js';
 import { sortItems, wireSortHeaders } from './sortable.js';
@@ -73,12 +74,12 @@ function wireLightbox(coaches) {
 async function init() {
 	const wrap = document.getElementById('coaches-table-wrap');
 	try {
-		const [gamesRes, coachesRes] = await Promise.all([
-			fetch('/data/packers_games.csv'),
+		// The season being played counts, from ESPN (games-client.js).
+		const [{ games: rows }, coachesRes] = await Promise.all([
+			loadGames(),
 			fetch('/data/packers_coaches.csv'),
 		]);
-		if (!gamesRes.ok || !coachesRes.ok) throw new Error('CSV fetch failed');
-		const rows = parseGames(await gamesRes.text());
+		if (!coachesRes.ok) throw new Error('CSV fetch failed');
 		const champions = computeSeasonHistory(rows).filter((s) => s.champion).map((s) => s.season);
 		const data = computeCoaches(rows, parseCoachesCsv(await coachesRes.text()), champions);
 
