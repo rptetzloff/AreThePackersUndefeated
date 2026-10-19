@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { espnBoxscore } from '../lib/espn-box.js'
+import { espnBoxscore, changeOfPossessionSpot } from '../lib/espn-box.js'
 import { fieldSvg, driveLogHtml, fieldTrackerHtml, scorebugHtml, lineToGain, playKind, MAX_ARROWS } from '../field-core.js'
 import { gamePageHtml, gameSummaryHtml, headerHtml } from '../game-core.js'
 
@@ -175,4 +175,59 @@ test("during a game the scoreboard's clock and scores win, so one card never sho
 	assert.match(scorebugHtml(b), /<div class="bug-status">4:39 - 1st<\/div>/)
 	// Without a scoreboard, the summary's own.
 	assert.equal(live.status, '11:13 - 1st')
+})
+
+// Tonight's plays where the ball changed hands, as ESPN wrote them.
+const TONIGHT = {
+	kickoff: 'T.Smack kicks 56 yards from GB 35 to DAL 9. K.Turpin to DAL 34 for 25 yards (T.Hopper).',
+	fairCatch: 'B.Anger punts 37 yards to GB 10, Center-T.Sieg, fair catch by C.Owen.',
+	puntReturn: ' B.Anger punts 45 yards to GB 25, Center-T.Sieg. C.Owen pushed ob at GB 41 for 16 yards (S.James).',
+	interception: '(Shotgun) D.Prescott pass short middle intended for C.Lamb INTERCEPTED by E.Williams at GB 3. E.Williams to GB 20 for 17 yards (J.Ferguson).',
+	reversed: '(Shotgun) J.Love pass short left intended for M.Golden INTERCEPTED by D.Winters at GB 42. D.Winters for 42 yards, TOUCHDOWN.The Replay Official reviewed the runner was not down by contact ruling, and the play was REVERSED.(Shotgun) J.Love pass short left intended for M.Golden INTERCEPTED by D.Winters at GB 42. D.Winters to GB 42 for no gain (M.Golden).',
+}
+
+test('where the ball changed hands, read from the text, in yards from the home goal line', () => {
+	const at = (t) => changeOfPossessionSpot(t, 'GB', 'DAL')
+	assert.equal(at(TONIGHT.kickoff), 91) // DAL 9, the visitors' side
+	assert.equal(at(TONIGHT.fairCatch), 10)
+	assert.equal(at(TONIGHT.puntReturn), 25)
+	assert.equal(at(TONIGHT.interception), 3)
+	// A reviewed play: the call, then the play as it stands. The last counts.
+	assert.equal(at(TONIGHT.reversed), 42)
+	// Tonight's said GB 42 both times, which cannot tell first from last;
+	// one where the review moved the spot can.
+	assert.equal(at('J.Love pass INTERCEPTED by D.Bland at GB 45. The Replay Official reviewed the pass completion ruling, and the play was REVERSED. J.Love pass INTERCEPTED by D.Bland at DAL 48.'), 52)
+	// Names have periods; the spot is after " at", not the first period.
+	assert.equal(at('J.Love sacked at GB 30 for -8 yards. FUMBLES (M.Parsons), RECOVERED by DAL-D.Lawrence at GB 28.'), 28)
+	assert.equal(at('T.Smack kicks 65 yards from GB 35 to DAL End Zone. Touchback.'), 100)
+	assert.equal(at('J.Williams right tackle to DAL 42 for 8 yards.'), null)
+})
+
+// The interception as a play on the field: from the GB 17, picked at the
+// GB 3, returned to the GB 20.
+const pick = { id: 'x', from: 17, via: 3, to: 20, yards: 17, turnover: true, typeText: 'Pass Interception Return', text: TONIGHT.interception, down: '3rd & 8', quarter: 2, clock: '14:23' }
+
+test('an interception is drawn as the pass to the pick, a mark there, and the return from it', () => {
+	const svg = fieldSvg({ ...live, drive: { ...live.drive, plays: [pick] } })
+	// x is 10 + yardLine: the GB 17 is 27, the GB 3 is 13, the GB 20 is 30.
+	assert.match(svg, /<line x1="27" y1="[\d.]+" x2="13" y2="[\d.]+" class="field-play-air"\/>/)
+	assert.match(svg, /<rect x="12\.40"[^>]*class="field-play-via"\/>/)
+	// The return: from the pick to the 20, its arrowhead at the 20.
+	assert.match(svg, /<line x1="13" y1="[\d.]+" x2="28\.8"/)
+	assert.match(svg, /<polygon points="30,/)
+	// No straight arrow from the 17 to the 20, which is what it used to be.
+	assert.doesNotMatch(svg, /<line x1="27" y1="[\d.]+" x2="28\.8"/)
+})
+
+test('a fair catch has no return: the arrowhead sits where it was caught', () => {
+	const fair = { ...pick, turnover: false, from: 47, via: 10, to: 10, typeText: 'Punt', text: TONIGHT.fairCatch }
+	const svg = fieldSvg({ ...live, drive: { ...live.drive, plays: [fair] } })
+	assert.match(svg, /<polygon points="20,/)
+	assert.equal((svg.match(/<polygon/g) || []).length, 1)
+})
+
+test("a turnover's yardage is not shown as the offense's gain", () => {
+	const html = driveLogHtml({ ...live, drive: { ...live.drive, plays: [pick] } })
+	assert.match(html, /<span class="drive-play-yds">INT<\/span>/)
+	assert.doesNotMatch(html, /\+17/)
 })

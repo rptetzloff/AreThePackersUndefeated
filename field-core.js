@@ -62,17 +62,42 @@ export function fieldSvg(box) {
 	// The plays, one row each between the numbers, oldest at the top.
 	const top = 6.5;
 	const step = plays.length > 1 ? Math.min(3.2, (H - 13) / (plays.length - 1)) : 0;
+	// An arrowhead at x2 pointing the way from x1, or nothing if they match.
+	const arrow = (x1, x2, y, kind) => {
+		const dir = Math.sign(x2 - x1);
+		if (!dir) return '';
+		return `<line x1="${x1}" y1="${y}" x2="${x2 - dir * 1.2}" y2="${y}"/>`
+			+ `<polygon points="${x2},${y} ${x2 - dir * 1.4},${(Number(y) - 0.9).toFixed(2)} ${x2 - dir * 1.4},${(Number(y) + 0.9).toFixed(2)}" class="field-play-${kind}"/>`;
+	};
 	plays.forEach((p, i) => {
 		const y = (top + i * step).toFixed(2);
-		const [x1, x2] = [x(p.from), x(p.to)];
 		const kind = playKind(p);
-		const dir = Math.sign(x2 - x1);
-		// An arrowhead pointing the way the ball went; a play that went
-		// nowhere (an incompletion) is a dot.
-		const head = dir ? `<polygon points="${x2},${y} ${x2 - dir * 1.4},${(Number(y) - 0.9).toFixed(2)} ${x2 - dir * 1.4},${(Number(y) + 0.9).toFixed(2)}" class="field-play-${kind}"/>` : '';
-		out.push(`<g class="field-play field-play-${kind}"><title>${esc(p.text)}</title>`
-			+ (dir ? `<line x1="${x1}" y1="${y}" x2="${x2 - dir * 1.2}" y2="${y}"/>` : '')
-			+ `<circle cx="${x1}" cy="${y}" r="0.7"/>${head}</g>`);
+		let path;
+		if (p.via != null) {
+			// The ball changed hands on the way: the kick or the pass as a
+			// dashed line to where it was fielded or picked off, a mark there,
+			// and the return as an arrow from it. A fair catch or a downed
+			// ball has no return, so its arrowhead is on the dashed line.
+			const [x1, xv, x2] = [x(p.from), x(p.via), x(p.to)];
+			const air = Math.sign(xv - x1);
+			const ret = xv !== x2;
+			// A kick goes downfield and the return comes back over the same
+			// yards, so on one row the return hid the kick: the kick sits a
+			// little above the row and the return a little below.
+			const split = air && ret;
+			const ya = split ? (Number(y) - 0.55).toFixed(2) : y;
+			const yr = split ? (Number(y) + 0.55).toFixed(2) : y;
+			path = (air ? `<line x1="${x1}" y1="${ya}" x2="${ret ? xv : xv - air * 1.2}" y2="${ya}" class="field-play-air"/>` : '')
+				+ (!ret && air ? `<polygon points="${xv},${y} ${xv - air * 1.4},${(Number(y) - 0.9).toFixed(2)} ${xv - air * 1.4},${(Number(y) + 0.9).toFixed(2)}" class="field-play-${kind}"/>` : '')
+				+ `<rect x="${(xv - 0.6).toFixed(2)}" y="${(Number(y) - 0.6).toFixed(2)}" width="1.2" height="1.2" class="field-play-via"/>`
+				+ (ret ? arrow(xv, x2, yr, kind) : '')
+				+ `<circle cx="${x1}" cy="${ya}" r="0.7"/>`;
+		} else {
+			// An arrowhead pointing the way the ball went; a play that went
+			// nowhere (an incompletion) is a dot.
+			path = arrow(x(p.from), x(p.to), y, kind) + `<circle cx="${x(p.from)}" cy="${y}" r="0.7"/>`;
+		}
+		out.push(`<g class="field-play field-play-${kind}"><title>${esc(p.text)}</title>${path}</g>`);
 	});
 	if (sit?.yardLine != null) out.push(`<circle cx="${x(sit.yardLine)}" cy="${H - 4.5}" r="1.3" class="field-ball"/>`);
 	const label = sit
@@ -85,8 +110,14 @@ const signed = (n) => (n == null ? '' : n > 0 ? `+${n}` : String(n));
 
 // A kick's yardage is ESPN's 0 (its distance is in the text, "punts 37
 // yards"), so a kick shows none rather than a misleading 0.
+// A turnover's statYardage is the RETURN, the other side's yards: the
+// interception at the GB 3 run back to the 20 read "+17" on the Cowboys'
+// drive. It shows what happened instead.
 const KICK = /punt|kickoff|field goal|extra point/i;
-const yardsOf = (p) => (p.down && !KICK.test(p.typeText) ? signed(p.yards) : '');
+const yardsOf = (p) => {
+	if (p.turnover) return /intercept/i.test(p.typeText + p.text) ? 'INT' : /fumble/i.test(p.typeText + p.text) ? 'FUM' : 'TO';
+	return p.down && !KICK.test(p.typeText) ? signed(p.yards) : '';
+};
 
 /** The drive's plays, newest first, each with its down and distance before
  *  the snap, the clock, what happened and the yards. */
