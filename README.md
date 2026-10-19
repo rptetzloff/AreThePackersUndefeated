@@ -104,11 +104,33 @@ The chart is built by `history-chart.js`, a pure SVG-string module shared by the
 
 Coach photos come from Wikimedia Commons (public domain or Creative Commons; the `image_page` column links each photo's source/license page, and clicking a photo opens it). Coaches without a free image on Commons get a placeholder.
 
+## Stadiums
+
+`/stadiums` is the Packers' game days since 1999, like the Brewers site's Ballparks page:
+- **Lambeau Field:** the record there, regular season and playoffs, the average and biggest crowd, and the coldest, hottest and windiest game.
+- **Game-day boards:** the coldest, windiest and hottest games, and the biggest and smallest crowds, each linked to its box score.
+- **Record by conditions:** below freezing, cold, mild and warm, windy, indoors, on grass and on artificial turf, split into all games, Lambeau and road.
+- **Road stadiums:** the record in each of the 74, sortable.
+- **Referees:** the record with each referee, sortable.
+
+It is in the footer nav after Records; the JSON is at `/api/stadiums`. `stadiums-core.js` builds it on the server.
+
+Where the data comes from:
+- **Stadium, roof, surface, kickoff temperature, wind and referee:** the games CSV's game-day columns, from nflverse. For the season being played, the server reads nflverse's schedules at runtime every six hours, through `lib/nflverse-games.js`, the same mapping `update-data.js` writes the CSV with. ESPN's schedule, which counts that season everywhere else, has none of these.
+- **Crowds:** ESPN's. `update-data.js` writes past games' crowds to `data/packers_attendance.csv`, fetching only games the file lacks. The server reads the season being played from ESPN's summaries through its cache.
+
+Rules the page follows:
+- A dome or closed roof has no temperature or wind.
+- A crowd of 0 is an empty stadium in 2020 only. ESPN also has 0 for five full games in 2012–13, which are left out as unrecorded.
+- Nothing before 1999 has weather, stadium or referee data in a source the site can use. The Ice Bowl (−13°F, 1967) is therefore not on the coldest list, and the page says so.
+
 ## Data Files
 
 `data/packers_games.csv` — game-by-game results for every Packers game from 1921 to the present, including opponent, score, location, and playoff/Super Bowl flags. Pre-1999 rows come from the FiveThirtyEight source; 1999–present rows are sourced from nflverse-data.
 
 `data/packers_season_records.csv` — one row per season with regular season and postseason win/loss/tie totals. Generated automatically by `update-data.js`.
+
+`data/packers_attendance.csv` — each past game's crowd since 1999, by ESPN id, from ESPN's game summary. Written by `update-data.js`, which fetches only the games it lacks.
 
 ## Updating Data
 
@@ -173,12 +195,15 @@ lib/espn-proxy.js    # cache in front of ESPN, lifetime chosen per response
 lib/espn-box.js      # a game's box score, reduced from ESPN's summary
 lib/game-details.js  # a past game's quarters, scoring and drives from nflverse pbp
 lib/player-births.js # Packers birth dates from nflverse players.csv
+lib/nflverse-games.js # nflverse schedules as games CSV rows (update-data + server)
+lib/attendance.js    # game crowds from ESPN summaries
 lib/records.js       # records/superlatives data + meta for /records routes
 lib/h2h.js           # head-to-head data + meta for /vs routes
 records-core.js      # shared superlative computation (browser + node)
 h2h-core.js          # shared head-to-head computation (browser + node)
 schedule-core.js     # the home page's compact schedule rows and chips
 game-core.js         # the game page's HTML from a box score
+stadiums-core.js     # the Stadiums page: Lambeau, weather, crowds, road stadiums, referees
 fonts/               # Liberation Sans (SIL OFL 1.1), bundled for deterministic rendering
 render.yaml          # Render Blueprint
 ```
@@ -237,6 +262,8 @@ Multiple photos per season are supported — they will all be displayed.
 **1999–present (static)** — game data is sourced from [nflverse-data](https://github.com/nflverse/nflverse-data), maintained by the [nflverse](https://nflverse.com) project and licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Credit: nflverse contributors. This data lives in `data/packers_games.csv` and is refreshed by `npm run update-data`.
 
 **Current season (live)** — for the most recent NFL season, the app fetches live schedule and score data from the ESPN public API at runtime, through the server's `/api/espn/` proxy rather than from the browser. The proxy fetches only the three endpoints the pages use, shares one ESPN call between concurrent viewers, keeps each response as long as it can still change (15 seconds for a game in progress's summary, an hour for a schedule with no game near, a day once final), and serves the last good answer if ESPN is briefly down. This covers preseason, regular season, and playoffs. When a game is in progress, the page polls every 30 seconds and shows the live score, game clock, down-and-distance, and last play. No API key is required; the ESPN endpoints used are public and unauthenticated.
+
+**Crowds** — each game's attendance is ESPN's, from its game summary (`data/packers_attendance.csv`, and the season being played at runtime).
 
 The app determines which data source to use automatically: seasons present in the CSV use static data; the current season (and any season ESPN returns that is newer than the CSV) uses the live ESPN feed. If the ESPN fetch fails, the app falls back to the CSV.
 

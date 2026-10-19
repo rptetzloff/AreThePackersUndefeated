@@ -23,10 +23,12 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url))
 /** The files permitted to name the CSV's columns.
  *
  *  records-core.js is the parser — naming them is its entire job. update-data.js
- *  writes the file, so it defines them. Tests are excluded from the scan
- *  altogether: test/data.test.js asserts the real CSV still has these columns,
- *  which is exactly the contract that makes the parser safe. */
-const OWNERS = new Set(['records-core.js', 'update-data.js'])
+ *  writes the file, so it defines them, with lib/nflverse-games.js's mapping
+ *  (shared with the server, which reads the season being played through it
+ *  and hands the result straight to parseGames). Tests are excluded from the
+ *  scan altogether: test/data.test.js asserts the real CSV still has these
+ *  columns, which is exactly the contract that makes the parser safe. */
+const OWNERS = new Set(['records-core.js', 'update-data.js', 'nflverse-games.js'])
 
 /** Property accesses, not bare words. A comment explaining that the CSV has a
  *  column called superbowl is fine and should stay legible; `g.superbowl` in
