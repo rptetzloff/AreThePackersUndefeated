@@ -1,4 +1,4 @@
-        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml } from './records-core.js';
+        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml, esc } from './records-core.js';
 import { SITE } from './site.js';
 import { scheduleListHtml, monthChipsHtml } from './schedule-core.js';
 import { withScoreboard } from './scoreboard-core.js';
@@ -37,18 +37,6 @@ import { seasonVerdict } from './lib/season-state.js';
 
         	async init() {
         		try {
-        			const toggle = document.getElementById('emoji-toggle');
-        			toggle.checked = this.showEmojis;
-        			toggle.addEventListener('change', () => {
-        				localStorage.setItem('showEmojis', toggle.checked ? 'true' : 'false');
-        				if (this._isOffseason) {
-        					this.displayOffseasonMessage();
-        				} else if (this._lastResult) {
-        					const { verdict, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord } = this._lastResult;
-        					this.displayResult(verdict, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord);
-        				}
-        			});
-
         			['streak-details', 'otd-details'].forEach(id => {
         				const details = document.getElementById(id);
         				if (!details) return;
@@ -635,25 +623,14 @@ markActiveMonth() {
         		const answerEl = document.getElementById('answer');
         		const recordEl = document.getElementById('record');
 
-        		const footballHtml = this.showEmojis ? '🏈<br>' : '';
         		this._lastResult = null;
         		this._isOffseason = true;
-        		answerEl.innerHTML = `${footballHtml}OFFSEASON`;
+        		answerEl.textContent = 'OFFSEASON';
         		answerEl.className = 'answer offseason';
         		document.body.classList.remove('undefeated');
         		document.body.classList.add('offseason');
 
         		recordEl.textContent = 'The season hasn\'t started yet!';
-        	}
-
-        	get showEmojis() {
-        		return localStorage.getItem('showEmojis') !== 'false';
-        	}
-
-        	emojiRowHtml(emoji, count) {
-        		if (count <= 0) return '';
-        		const spans = Array.from({ length: count }, () => `<span>${emoji}</span>`).join('');
-        		return `<div class="emoji-row">${spans}</div>`;
         	}
 
         	displayResult(verdict, wins, losses, ties, isPastSeason = false, superBowlName = null, postRecord = null, preRecord = null) {
@@ -663,31 +640,26 @@ markActiveMonth() {
         		this._lastResult = { verdict, wins, losses, ties, isPastSeason, superBowlName, postRecord, preRecord };
         		this._isOffseason = false;
 
-        		const emojis = this.showEmojis;
-
+        		// The answer is the word alone. It used to sit between rows of
+        		// emoji, a cheese a win and a sad face a loss, behind a toggle;
+        		// both went in October 2026.
         		if (verdict === 'not-started') {
         			// No games played and the season is not over: not YES, which
         			// would be hollow, and emphatically not NO, which is what it
         			// used to say about a team that had not lost.
-        			const footballHtml = emojis ? this.emojiRowHtml('🏈', 1) : '';
-        			answerEl.innerHTML = `${SITE.copy.seasonNotStarted}${footballHtml}`;
+        			answerEl.textContent = SITE.copy.seasonNotStarted;
         			answerEl.className = 'answer not-started';
         			document.body.classList.remove('undefeated');
         		} else if (verdict === 'undefeated') {
-        			const cheeseHtml = emojis && wins > 0 ? this.emojiRowHtml('🧀', wins) : '';
-        			const footballHtml = emojis && !isPastSeason ? this.emojiRowHtml('🏈', 1) : '';
-        			answerEl.innerHTML = `${cheeseHtml}YES!!!${footballHtml}`;
+        			answerEl.textContent = 'YES!!!';
         			answerEl.className = 'answer yes';
         			document.body.classList.add('undefeated');
         		} else if (superBowlName) {
-        			answerEl.innerHTML = `🏆🏈🧀<br>${superBowlName.toUpperCase()}<br>CHAMPIONS!<br>🎉🎊🎉`;
+        			answerEl.innerHTML = `${esc(superBowlName.toUpperCase())}<br>CHAMPIONS!`;
         			answerEl.className = 'answer champions';
         			document.body.classList.remove('undefeated');
         		} else {
-        			const cheeseHtml = emojis && wins > 0 ? this.emojiRowHtml('🧀', wins) : '';
-        			const footballHtml = emojis && !isPastSeason ? this.emojiRowHtml('🏈', 1) : '';
-        			const frownHtml = emojis && losses > 0 ? this.emojiRowHtml('😢', losses) : '';
-        			answerEl.innerHTML = `${cheeseHtml}NO${footballHtml}${frownHtml}`;
+        			answerEl.textContent = 'NO';
         			answerEl.className = 'answer no';
         			document.body.classList.remove('undefeated');
         		}

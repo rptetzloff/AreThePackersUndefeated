@@ -43,14 +43,6 @@ h1 {
     text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 }
 
-.emoji-row {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.1em;
-    line-height: 1.3;
-}
-
 .yes {
     background: transparent;
     color: white;
@@ -1208,32 +1200,6 @@ details:not([open]) > .collapsible-summary::before {
         left: 50%;
         transform: translateX(-50%);
     }
-}
-
-.home-notes .emoji-toggle-label {
-    margin-top: 1rem;
-}
-
-.emoji-toggle-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 0.8rem;
-    cursor: pointer;
-    user-select: none;
-    transition: color 0.2s;
-}
-
-.emoji-toggle-label:hover {
-    color: rgba(255, 255, 255, 0.85);
-}
-
-.emoji-toggle-label input[type="checkbox"] {
-    accent-color: #ffb612;
-    width: 0.9rem;
-    height: 0.9rem;
-    cursor: pointer;
 }
 
 /* Photo gallery button */
