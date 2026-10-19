@@ -2622,3 +2622,21 @@ th.sorted-desc::after {
         font-size: 0.8rem;
     }
 }
+
+/* The field on the home page's pinned live card. The whole drive is kept,
+   newest first; past a handful of plays it scrolls inside the card rather
+   than stretching the left column. */
+.live-card-tracker {
+    margin-top: 0.6rem;
+}
+
+.live-card-tracker .field-tracker {
+    margin: 0;
+}
+
+.live-card-tracker .drive-plays {
+    max-height: 15rem;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #ffb612 #203731;
+}

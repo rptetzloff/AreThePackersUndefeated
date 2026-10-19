@@ -2,6 +2,7 @@
 import { SITE } from './site.js';
 import { scheduleListHtml, monthChipsHtml } from './schedule-core.js';
 import { withScoreboard } from './scoreboard-core.js';
+import { fieldTrackerHtml } from './field-core.js';
 import { gameSummaryHtml, gameTitle } from './game-core.js';
 import { seasonVerdict } from './lib/season-state.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
@@ -477,72 +478,37 @@ markActiveMonth() {
   });
 }
 
+        	// The live game's detail. Its status, scores and situation are already
+        	// the scoreboard's (scoreboard-core.js, merged in fetchPackersData).
+        	// What this adds is the game's box score from /api/boxscore/<id>,
+        	// about 5KB during a game, for the field and the drive's plays on the
+        	// live card. It used to re-fetch the scoreboard and, when the game was
+        	// not on it, ESPN's whole summary: 600KB every 30 seconds.
         	async fetchLiveGameScore(liveGame, scheduleData) {
+        		const sit = liveGame.competitions?.[0]?.situation;
+        		if (sit) {
+        			liveGame.lastPlay = {
+        				downDistanceText: sit.downDistanceText,
+        				possession: sit.possession,
+        				drive: sit.lastPlay?.drive,
+        				text: sit.lastPlay?.text,
+        			};
+        		}
         		try {
-        			const gameId = liveGame.id;
-        			const scoreboardUrl = `/api/espn/apis/site/v2/sports/football/nfl/scoreboard`;
-        			const response = await fetch(scoreboardUrl);
-        			const scoreboardData = await response.json();
-
-        			const currentGame = scoreboardData.events?.find(event => event.id === gameId);
-
-        			if (currentGame && currentGame.competitions?.[0]?.competitors) {
-        				currentGame.competitions[0].competitors.forEach(competitor => {
-        					const teamId = competitor.team.id;
-        					const score = competitor.score;
-        					const scheduleCompetitor = liveGame.competitions[0].competitors.find(comp => comp.team.id === teamId);
-        					if (scheduleCompetitor && score) {
-        						scheduleCompetitor.score = score;
-        					}
-        				});
-
-        				if (currentGame.competitions?.[0]?.situation) {
-        					const situation = currentGame.competitions[0].situation;
-        					liveGame.lastPlay = {
-        						downDistanceText: situation.downDistanceText,
-        						possession: situation.possession,
-        						drive: situation.lastPlay?.drive,
-        						text: situation.lastPlay?.text
-        					};
-        				}
-        			} else {
-        				const boxscoreUrl = `/api/espn/apis/site/v2/sports/football/nfl/summary?event=${gameId}`;
-        				const boxResponse = await fetch(boxscoreUrl);
-        				const boxscoreData = await boxResponse.json();
-
-        				if (boxscoreData.header?.competitions?.[0]?.competitors) {
-        					boxscoreData.header.competitions[0].competitors.forEach(competitor => {
-        						const teamId = competitor.team.id;
-        						const score = competitor.score;
-        						const scheduleCompetitor = liveGame.competitions[0].competitors.find(comp => comp.team.id === teamId);
-        						if (scheduleCompetitor && score) {
-        							scheduleCompetitor.score = score;
-        						}
-        					});
-        				}
-
-        				if (boxscoreData.drives?.current?.plays?.length > 0) {
-        					const lastPlay = boxscoreData.drives.current.plays[boxscoreData.drives.current.plays.length - 1];
-        					liveGame.lastPlay = {
-        						downDistanceText: boxscoreData.situation?.downDistanceText,
-        						possession: boxscoreData.situation?.possession,
-        						drive: { description: boxscoreData.drives?.current?.description },
-        						text: lastPlay.text || lastPlay.description
-        					};
-        				} else if (boxscoreData.situation) {
-        					liveGame.lastPlay = {
-        						downDistanceText: boxscoreData.situation.downDistanceText,
-        						possession: boxscoreData.situation.possession,
-        						drive: boxscoreData.situation.lastPlay?.drive,
-        						text: boxscoreData.situation.lastPlay?.text
-        					};
+        			const res = await fetch(`/api/boxscore/${encodeURIComponent(liveGame.id)}`, { cache: 'no-cache' });
+        			if (res.ok) {
+        				const box = await res.json();
+        				liveGame._box = box;
+        				// The scores too, should the scoreboard have failed.
+        				for (const c of liveGame.competitions[0].competitors) {
+        					const t = c.team.abbreviation === box.home.abbr ? box.home : c.team.abbreviation === box.away.abbr ? box.away : null;
+        					if (t && t.score !== '' && c.score == null) c.score = { value: Number(t.score), displayValue: String(t.score) };
         				}
         			}
-
-        			this.processScheduleData(scheduleData);
         		} catch (error) {
-        			this.processScheduleData(scheduleData);
+        			console.error('Live box score failed:', error);
         		}
+        		this.processScheduleData(scheduleData);
         	}
 
         	processScheduleData(data) {
@@ -983,7 +949,14 @@ if (isLive || isInProgress) {
  statusDiv.textContent = status.type.detail || status.type.shortDetail || 'Live';
  gameDetails.appendChild(statusDiv);
 
- if (event.lastPlay) {
+ // The field with the drive under way (field-core.js), from the game's box
+ // score; the text below is what shows when that could not be fetched.
+ if (event._box && (event._box.drive || event._box.situation)) {
+    const tracker = document.createElement('div');
+    tracker.className = 'live-card-tracker';
+    tracker.innerHTML = fieldTrackerHtml(event._box);
+    gameDetails.appendChild(tracker);
+ } else if (event.lastPlay) {
     const lastPlayDiv = document.createElement('div');
     lastPlayDiv.className = 'last-play';
 
