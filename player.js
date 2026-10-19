@@ -49,6 +49,14 @@ async function show() {
 		state.season = p.log.season;
 		document.getElementById('player-name').textContent = p.name;
 		document.getElementById('player-sub').textContent = `${p.pos} · Green Bay Packers · ${p.span}`;
+		// A quarterback's record in the games he started (splits-core.js).
+		const starts = document.getElementById('player-starts');
+		if (p.starts) {
+			const s = p.starts;
+			const playoffs = s.playoffs.games ? `, ${esc(s.playoffs.record)} in the playoffs` : '';
+			starts.innerHTML = `As the starter: ${esc(s.regular.record)} in the regular season${playoffs} · <a href="/splits#quarterbacks">all starters</a>`;
+			starts.hidden = false;
+		} else starts.hidden = true;
 		document.title = `${p.name} · Packers stats`;
 		root.innerHTML = (p.categories.length
 			? p.categories.map(categoryHtml).join('')

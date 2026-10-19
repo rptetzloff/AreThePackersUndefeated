@@ -1874,7 +1874,20 @@ details:not([open]) > .collapsible-summary::before {
     flex: 1;
 }
 
-/* Stadiums page (stadiums.html). */
+/* A quarterback's record as the starter, under his name on the player page. */
+.player-starts {
+    text-align: center;
+    color: rgb(var(--fg-rgb) / 0.75);
+    font-size: 0.9rem;
+    margin: -1.5rem 0 1.5rem;
+}
+
+.player-starts a {
+    color: var(--accent-text);
+}
+
+/* Stadiums page (stadiums.html), and the Splits page, which shares its
+   headings and tables. */
 .stadiums-heading {
     color: var(--accent-text);
     font-size: 1.15rem;
@@ -1904,8 +1917,10 @@ details:not([open]) > .collapsible-summary::before {
     text-align: left;
 }
 
-/* The condition's definition under its name, not beside it. */
-.stadiums-conditions .stadiums-note {
+/* The condition's definition, or the quarterback's teams, under the name,
+   not beside it. */
+.stadiums-conditions .stadiums-note,
+.compact-tables td .stadiums-note {
     display: block;
 }
 
@@ -1922,17 +1937,22 @@ details:not([open]) > .collapsible-summary::before {
         display: none;
     }
 
-    #stadiums-conditions .h2h-table :is(th, td),
-    #stadiums-road .h2h-table :is(th, td),
-    #stadiums-referees .h2h-table :is(th, td) {
+    /* The Stadiums and Splits tables. */
+    .compact-tables .h2h-table :is(th, td) {
         padding-left: 0.5rem;
         padding-right: 0.5rem;
     }
 
-    #stadiums-road .h2h-table th,
-    #stadiums-referees .h2h-table th {
+    .compact-tables .h2h-table th {
         font-size: 0.72rem;
         letter-spacing: 0;
+        /* "Against the spread" over two lines rather than off the screen. */
+        white-space: normal;
+    }
+
+    /* Years say least on a phone: the player page has them. */
+    .compact-col-years {
+        display: none;
     }
 }
 
