@@ -264,8 +264,37 @@ Brewers one only became after CodeQL flagged it.
 Still to come, roughly in order of how much they would be used: the live game
 card (down and distance, drives, the last plays, from a server-side reduction
 of ESPN's summary, as Brewers does for baseball), TV, the playoff panel and
-bracket, a box score page, the `.ics` calendar feed, the disclaimer modal,
+bracket, ~~a box score page~~, the `.ics` calendar feed, the disclaimer modal,
 `sortable.js`.
+
+*October 2026:* the box score page shipped for the season being played, at
+`/game/<ESPN event id>`. It is a new reducer rather than a port: the Brewers
+one is innings, pitchers and fielding, and shares nothing with football but
+the shape of the job.
+
+### Box scores for past seasons
+The page works for any game ESPN has an id for. What is missing is the link:
+the CSV has no ESPN ids, so a past season's rows have nothing to point at.
+
+What ESPN has, measured October 2026 on the first regular-season game of
+each season through its summary endpoint:
+
+| Seasons | Quarters, scoring plays, drives | Team stats | Player tables |
+|---|---|---|---|
+| 2001–2025 | yes | yes | yes |
+| 1995–1999 | no | yes | yes |
+| 1985, 1970 | no | no | categories present |
+
+ESPN's schedule for 1985 lists 8 games and for 1970 9, so before about 1990
+its coverage is not even a complete list of games. One season sampled per row:
+the boundaries are approximate, and the 1995–1999 band in particular needs
+checking game by game before a page promises a line score.
+
+The work: `update-data.js` matches each CSV game to an ESPN event by date and
+opponent and writes an `espn_id` column, derived like everything else in the
+file, never hand-edited. The page then needs to say plainly what a given
+year does not have rather than drawing empty sections, and the Box link should
+appear only where a box score exists. Start at 2001 and work back.
 
 ~~Not portable: everything TV — providers, channels, watch modal, sponsor slots.
 Those exist because one site answers "can I watch this" and the other answers

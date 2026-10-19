@@ -53,11 +53,15 @@ export function scheduleRowHtml(row) {
 		+ '</div>';
 }
 
-/** A played or live game's link to ESPN's page for it. The Brewers rows also
- *  carry a summary and a box score; those pages do not exist here. */
+/** A played or live game's links: its box score page and ESPN's page for
+ *  it. `links` is { box: '/game/…', espn: 'https://…' }, either of them.
+ *  The Brewers rows also carry a line-score pop-up, which this site does
+ *  not have. */
 function rowLinksHtml(links) {
-	if (!links?.espn) return '';
-	return `<span class="sched-links"><a class="sched-link sched-link-espn" href="${esc(links.espn)}" target="_blank" rel="noopener noreferrer" title="This game on ESPN" aria-label="ESPN">ESPN</a></span>`;
+	const out = [];
+	if (links?.box) out.push(`<a class="sched-link" href="${esc(links.box)}" title="Box score" aria-label="Box score"><i class="mdi mdi-table" aria-hidden="true"></i><span class="sched-link-label">Box</span></a>`);
+	if (links?.espn) out.push(`<a class="sched-link sched-link-espn" href="${esc(links.espn)}" target="_blank" rel="noopener noreferrer" title="This game on ESPN" aria-label="ESPN">ESPN</a>`);
+	return out.length ? `<span class="sched-links">${out.join('')}</span>` : '';
 }
 
 /** The list: phase labels where the phase changes (Preseason, Regular

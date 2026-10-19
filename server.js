@@ -17,6 +17,7 @@ import { h2h, h2hMeta, isOpponentSlug } from './lib/h2h.js';
 import { esc } from './records-core.js';
 import { espnTarget } from './lib/espn-target.js';
 import { createEspnCache, browserMaxAge } from './lib/espn-proxy.js';
+import { espnBoxscore } from './lib/espn-box.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
@@ -56,6 +57,7 @@ const RECORDS_VERSIONED = loadShell('records.html', ['records.js', 'styles.css']
 const VS_VERSIONED = loadShell('vs.html', ['vs.js', 'styles.css']);
 const HISTORY_VERSIONED = loadShell('history.html', ['history.js', 'styles.css']);
 const COACHES_VERSIONED = loadShell('coaches.html', ['coaches.js', 'styles.css']);
+const GAME_VERSIONED = loadShell('game.html', ['game.js', 'styles.css']);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -233,10 +235,70 @@ async function serveEspnProxy(res, path, search) {
   res.end(got.body);
 }
 
+// A game's box score, from ESPN: /game/<ESPN event id> and its data at
+// /api/boxscore/<id>. Reduced once per summary fetched (lib/espn-box.js),
+// however many viewers ask in between; the summary itself comes through
+// the same cache as the proxy, so a live game is 15 seconds old at most.
+const ESPN_GAME_ID = /^\d{6,12}$/;
+const boxMemo = new Map(); // event id -> { at, box }
+async function espnBox(eventId) {
+  const got = await espn.get(espnTarget('apis/site/v2/sports/football/nfl/summary', `event=${eventId}`));
+  if (!got || got.status !== 200) return null;
+  const memo = boxMemo.get(eventId);
+  if (memo && memo.at === got.at) return memo.box;
+  let box = null;
+  try { box = espnBoxscore(JSON.parse(got.body)); } catch { /* not a game */ }
+  if (boxMemo.size > 100) boxMemo.clear();
+  boxMemo.set(eventId, { at: got.at, box });
+  return box;
+}
+
+async function serveBoxscoreApi(res, eventId) {
+  const box = await espnBox(eventId);
+  if (!box) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ error: 'Game not found' }));
+  }
+  // A final box score is settled; one in progress changes every play, and
+  // the page asks every 15 seconds.
+  const maxAge = box.final ? 3600 : box.live ? 5 : 60;
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': `public, max-age=${maxAge}` });
+  res.end(JSON.stringify(box));
+}
+
+async function serveGameHtml(req, res, eventId) {
+  const box = await espnBox(eventId);
+  if (!box) return notFound(res);
+  const origin = originOf(req);
+  const { away, home } = box;
+  const matchup = `${away.name} @ ${home.name}`;
+  const score = `${away.short} ${away.score}, ${home.short} ${home.score}`;
+  const desc = box.final ? `Box score: ${score} (${box.date}).`
+    : box.live ? `Live: ${score}, ${box.status}.`
+    : `${matchup}, ${box.date}.`;
+  return sendPage(res, GAME_VERSIONED, {
+    title: box.state === 'pre' ? `${matchup} — ${box.date}` : `${score} — ${box.date}`,
+    desc, img: `${origin}/og/default.png`, canonical: `${origin}/game/${eventId}`,
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
     const pathname = decodeURIComponent(url.pathname);
+
+    const boxApi = pathname.match(/^\/api\/boxscore\/(\d+)$/);
+    if (boxApi) {
+      if (!ESPN_GAME_ID.test(boxApi[1])) return notFound(res);
+      return await serveBoxscoreApi(res, boxApi[1]);
+    }
+    if (pathname.startsWith('/game/')) {
+      // Only an ESPN event id gets the page; anything else 404s rather than
+      // falling through to the home page.
+      const game = pathname.match(/^\/game\/(\d+)\/?$/);
+      if (!game || !ESPN_GAME_ID.test(game[1])) return notFound(res);
+      return await serveGameHtml(req, res, game[1]);
+    }
 
     if (pathname.startsWith('/api/espn/'))
       return await serveEspnProxy(res, pathname.slice('/api/espn/'.length), url.search);

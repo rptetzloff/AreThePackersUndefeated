@@ -64,6 +64,16 @@ The schedule is one compact row a game — date, opponent with its all-time reco
 
 From 1100px the page splits into two columns: the answer and the season's story on the left, the schedule on the right as a panel the height of the screen with its list scrolling inside. Narrower, the blocks stack — answer and pinned game, the season's story, the schedule, the notes.
 
+Each played or live game on the schedule links to its own page (Box) and to ESPN's.
+
+## Game Pages
+
+`/game/<ESPN event id>` is a game's box score: both teams with records and the score, where it was played and the crowd, the score by quarter, every scoring play under its quarter with the running score, the team stats side by side, each team's player tables (passing, rushing, receiving, fumbles, defense, interceptions, returns, kicking, punting) behind a tab per team, away on the left and the Packers' open, and the drives. Every section is under a plain heading; nothing is collapsed. A game in progress adds who has the ball, down and distance and the last play, and redraws every 15 seconds until it is final.
+
+The server boils ESPN's game summary (about 600KB) down to about 15KB (`lib/espn-box.js`) and serves it at `/api/boxscore/<id>`; the page draws it (`game-core.js`). The page's title and link preview carry the score.
+
+Only games ESPN has an id for get a page: this season's, from the schedule. Past seasons come from the CSV, which has no ESPN ids, so their rows have no Box link yet.
+
 Every page has a footer nav stuck to the bottom of the window: Home, Records, Head-to-Head, History, Coaches, Share and GitHub. On a phone it is a tab bar.
 
 ## Franchise History Chart
@@ -144,11 +154,13 @@ lib/cards.js         # SVG -> PNG card generator (seasons + records)
 lib/seasons.js       # per-season record from CSV + live ESPN feed
 lib/espn-target.js   # allowlist of ESPN endpoints the proxy may fetch
 lib/espn-proxy.js    # cache in front of ESPN, lifetime chosen per response
+lib/espn-box.js      # a game's box score, reduced from ESPN's summary
 lib/records.js       # records/superlatives data + meta for /records routes
 lib/h2h.js           # head-to-head data + meta for /vs routes
 records-core.js      # shared superlative computation (browser + node)
 h2h-core.js          # shared head-to-head computation (browser + node)
 schedule-core.js     # the home page's compact schedule rows and chips
+game-core.js         # the game page's HTML from a box score
 fonts/               # Liberation Sans (SIL OFL 1.1), bundled for deterministic rendering
 render.yaml          # Render Blueprint
 ```
