@@ -6,6 +6,7 @@ import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { gunzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, normalize, extname } from 'node:path';
 import { renderPng, renderRecordsPng, renderH2hPng, renderHistoryPng, renderCoachesPng } from './lib/cards.js';
@@ -16,6 +17,8 @@ import { coachesMeta } from './lib/coaches.js';
 import { h2hMeta, isOpponentSlug } from './lib/h2h.js';
 import { derive } from './lib/derived.js';
 import { currentSeasonRows, rowsToCsv } from './lib/current-season.js';
+import { packersPlayerRows, parsePlayerGames } from './lib/player-stats.js';
+import { CATEGORIES, seasonTables, seasonsOf, leaders } from './stats-core.js';
 import { esc, parseGames, poolCurrentSeason, seasonBeingPlayed } from './records-core.js';
 import { espnTarget } from './lib/espn-target.js';
 import { createEspnCache, browserMaxAge } from './lib/espn-proxy.js';
@@ -72,6 +75,7 @@ const VS_VERSIONED = loadShell('vs.html', ['vs.js', 'styles.css', 'theme.js']);
 const HISTORY_VERSIONED = loadShell('history.html', ['history.js', 'styles.css', 'theme.js']);
 const COACHES_VERSIONED = loadShell('coaches.html', ['coaches.js', 'styles.css', 'theme.js']);
 const GAME_VERSIONED = loadShell('game.html', ['game.js', 'styles.css', 'theme.js']);
+const STATS_VERSIONED = loadShell('stats.html', ['stats.js', 'styles.css', 'theme.js']);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -177,6 +181,72 @@ async function currentSeason() {
   } catch {
     return null;
   }
+}
+
+// Player stats, game by game, 1999 on (lib/player-stats.js): the committed
+// file, with the season being played read from nflverse at runtime, as the
+// season's games are read from ESPN. Refreshed every six hours; until the
+// first fetch succeeds, and whenever it fails, the file's rows stand.
+const committedPlayerGames = parsePlayerGames(readFileSync(join(ROOT, 'data', 'packers_player_games.csv'), 'utf8'));
+const PLAYER_STATS_TTL = 6 * 60 * 60 * 1000;
+let playerCurrent = { at: 0, season: null, rows: null, inFlight: null };
+async function currentPlayerRows() {
+  const season = seasonBeingPlayed();
+  const fresh = playerCurrent.season === season && Date.now() - playerCurrent.at < PLAYER_STATS_TTL;
+  if (fresh || playerCurrent.inFlight) return playerCurrent.rows;
+  playerCurrent.inFlight = (async () => {
+    try {
+      const r = await fetch(`https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_${season}.csv.gz`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const rows = packersPlayerRows(gunzipSync(Buffer.from(await r.arrayBuffer())).toString('utf8'));
+      playerCurrent = { at: Date.now(), season, rows, inFlight: null };
+    } catch {
+      // Keep what we had; try again on the next request after a minute.
+      playerCurrent = { ...playerCurrent, at: Date.now() - PLAYER_STATS_TTL + 60 * 1000, inFlight: null };
+    }
+  })();
+  // The first request waits for the fetch; later ones get the last rows.
+  if (!playerCurrent.rows) await playerCurrent.inFlight;
+  return playerCurrent.rows;
+}
+
+let statsMemo = null; // { key, rows, leaders: Map }
+async function playerGamesNow() {
+  const season = seasonBeingPlayed();
+  const cur = await currentPlayerRows();
+  const key = `${season}|${playerCurrent.at}|${cur ? cur.length : 'file'}`;
+  if (statsMemo?.key === key) return statsMemo;
+  const rows = cur
+    ? [...committedPlayerGames.filter((r) => Number(r.season) !== season), ...cur]
+    : committedPlayerGames;
+  statsMemo = { key, rows, seasons: seasonsOf(rows), cache: new Map() };
+  return statsMemo;
+}
+
+const STAT_TYPES = new Set(['REG', 'POST', 'ALL']);
+async function serveStatsApi(res, url, which) {
+  const d = await playerGamesNow();
+  const type = STAT_TYPES.has(url.searchParams.get('type')) ? url.searchParams.get('type') : 'REG';
+  let body;
+  if (which === 'leaders') {
+    const k = `leaders|${type}`;
+    if (!d.cache.has(k)) d.cache.set(k, JSON.stringify({ type, first: d.seasons.at(-1), last: d.seasons[0], leaders: leaders(d.rows, { type }) }));
+    body = d.cache.get(k);
+  } else {
+    const asked = Number(url.searchParams.get('season'));
+    const season = d.seasons.includes(asked) ? asked : d.seasons[0];
+    const k = `season|${season}|${type}`;
+    if (!d.cache.has(k)) {
+      d.cache.set(k, JSON.stringify({
+        season, type, seasons: d.seasons,
+        categories: CATEGORIES.map((c) => ({ key: c.key, title: c.title, sort: c.sort, columns: c.columns.map(([key, label]) => [key, label]) })),
+        tables: seasonTables(d.rows, season, type),
+      }));
+    }
+    body = d.cache.get(k);
+  }
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+  res.end(body);
 }
 
 // Records, history, head-to-head and coaches for the games as they stand:
@@ -417,6 +487,17 @@ const server = http.createServer(async (req, res) => {
       }
       res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'public, max-age=60', 'X-Season': String(cur.season) });
       return res.end(cur.csv);
+    }
+
+    if (pathname === '/api/stats') return await serveStatsApi(res, url, 'season');
+    if (pathname === '/api/stats/leaders') return await serveStatsApi(res, url, 'leaders');
+    if (pathname === '/stats' || pathname === '/stats/' || pathname === '/stats.html') {
+      const origin = originOf(req);
+      return sendPage(res, STATS_VERSIONED, {
+        title: 'Packers Player Stats',
+        desc: "Every Green Bay Packers player's season, and the leaders, since 1999.",
+        img: `${origin}/og/default.png`, canonical: `${origin}/stats`,
+      });
     }
 
     if (pathname === '/records' || pathname === '/records/' || pathname === '/records.html')

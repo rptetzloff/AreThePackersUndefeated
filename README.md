@@ -66,6 +66,14 @@ From 1100px the page splits into two columns: the answer and the season's story 
 
 Each played or live game on the schedule has three links: **Summary**, **Box** (its own page) and ESPN's. A click anywhere else on the row also opens the summary: a pop-up with the status, date, stadium, crowd and network, the score by quarter, each side's top passer, rusher and receiver, every scoring play, and the way on to the full box score. It is built from the same reduced box score as the game page, so opening it costs about 15KB.
 
+## Player Stats
+
+`/stats` has every Packers player's season since 1999, a table per category (passing, rushing, receiving, defense, kicking, punting, returns), for the regular season, the playoffs or both, and the leaders: single-season, and Packers career since 1999. The numbers are nflverse's weekly player stats (CC BY 4.0), summed by `stats-core.js`; rates are computed from the totals and left empty with no attempts, and the passer rating is the league's formula.
+
+`update-data.js` writes `data/packers_player_games.csv`, one row per player per game, 1999 on (about 1.4MB). The season being played comes from nflverse at runtime, refreshed every six hours, as its games come from ESPN; the committed rows are its fallback.
+
+Two limits, both said on the page: nflverse has no player stats before 1999, so a career that began earlier (Brett Favre's, from 1992) is counted from 1999; and its stats are built from play-by-play, which now and then misses or misattributes a play, so a total can differ from the official one by a play (Aaron Rodgers's 2011 is one 7-yard completion short).
+
 ## Game Pages
 
 `/game/<ESPN event id>` is a game's box score: both teams with records and the score, where it was played and the crowd, the score by quarter, every scoring play under its quarter with the running score, the team stats side by side, each team's player tables (passing, rushing, receiving, fumbles, defense, interceptions, returns, kicking, punting) behind a tab per team, away on the left and the Packers' open, and the drives. Every section is under a plain heading; nothing is collapsed. A game in progress adds who has the ball, down and distance and the last play, and redraws every 15 seconds until it is final.

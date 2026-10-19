@@ -317,6 +317,24 @@ Stats page — season and career leaders, player pages — from the weekly stats
 as the Brewers site has from Retrosheet. Before 1999 neither source has
 anything; Pro-Football-Reference does, and its terms do not allow reuse.
 
+*October 2026:* ~~a Stats page~~ — the page shipped: a season's tables by
+category, and single-season and career leaders, careers headed "since 1999"
+in every list rather than in a footnote. The season being played is read
+from nflverse at runtime. Measured against the record before shipping:
+Rodgers's 2011 rating, touchdowns and interceptions, Nelson's and Crosby's
+2011, Adams's 2021 and Kampman's 2006 all match exactly; Rodgers's 2011
+yards and Driver's Packers career are each 7 yards short (one completion
+missing from play-by-play), and Matthews's career sacks are 82.5 against
+83.5. The page says the totals can differ by a play.
+
+nfldata.org was looked at as a way past 1999 and is not one: its player
+stats also start in 1999, its pre-1999 scoring plays (1970–1997) come with
+no stated license, and it says it mixes Pro-Football-Reference into its data
+without saying which.
+
+Still to come: player pages (seasons, career, game log) and search, then
+the box score gaps from pbp.
+
 ### ~~The weekly data update has failed since 15 September 2026~~
 update-data.yml committed to main, and main now requires a pull request and
 code scanning, so every push was rejected and no 2026 game reached the CSV

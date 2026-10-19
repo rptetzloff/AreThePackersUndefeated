@@ -14,12 +14,18 @@
 
 import { createWriteStream, readFileSync, writeFileSync } from 'fs';
 import https from 'https';
+import { gunzipSync } from 'zlib';
 import { splitCsvLine } from './records-core.js';
+import { packersPlayerRows, playerRowsToCsv } from './lib/player-stats.js';
 
 const NFLVERSE_URL =
     'https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv';
 
 function fetchText(url) {
+    return fetchBuffer(url).then(b => b.toString('utf8'));
+}
+
+function fetchBuffer(url) {
     return new Promise((resolve, reject) => {
         const follow = (u) => {
             https.get(u, { headers: { 'User-Agent': 'packers-data-updater/1.0' } }, res => {
@@ -33,7 +39,7 @@ function fetchText(url) {
                 }
                 const chunks = [];
                 res.on('data', d => chunks.push(d));
-                res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+                res.on('end', () => resolve(Buffer.concat(chunks)));
                 res.on('error', reject);
             }).on('error', reject);
         };
@@ -268,6 +274,34 @@ async function main() {
     const maxSeasonGames = allGames.filter(g => parseInt(g.season) === maxSeason);
     const completed = maxSeasonGames.filter(g => g['Packers Win'] !== '');
     console.log(`Latest season: ${maxSeason} (${completed.length} completed games)`);
+
+    await updatePlayerGames(maxSeason);
+}
+
+// Every Packers player's stats, game by game, 1999 on, from nflverse's
+// stats_player_week (CC BY 4.0): one gzipped file a season. Before 1999
+// nflverse has none, and no source this site can use has any.
+const PLAYER_STATS_URL = (season) =>
+    `https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_${season}.csv.gz`;
+
+async function updatePlayerGames(lastSeason) {
+    const rows = [];
+    for (let season = 1999; season <= lastSeason; season++) {
+        let text;
+        try {
+            text = gunzipSync(await fetchBuffer(PLAYER_STATS_URL(season))).toString('utf8');
+        } catch (err) {
+            // The season being played may not be published yet; an earlier
+            // one missing is an error.
+            if (season === lastSeason) { console.log(`No player stats yet for ${season}`); break; }
+            throw err;
+        }
+        const seasonRows = packersPlayerRows(text);
+        rows.push(...seasonRows);
+        console.log(`Player stats ${season}: ${seasonRows.length} rows`);
+    }
+    writeFileSync('./data/packers_player_games.csv', playerRowsToCsv(rows));
+    console.log(`Wrote data/packers_player_games.csv (${rows.length} player-games)`);
 }
 
 main().catch(err => {
