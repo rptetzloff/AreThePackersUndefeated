@@ -61,12 +61,12 @@ function loadShell(file, assets) {
     return html;
   }, stripped);
 }
-const INDEX_VERSIONED = loadShell('index.html', ['main.js', 'styles.css']);
-const RECORDS_VERSIONED = loadShell('records.html', ['records.js', 'styles.css']);
-const VS_VERSIONED = loadShell('vs.html', ['vs.js', 'styles.css']);
-const HISTORY_VERSIONED = loadShell('history.html', ['history.js', 'styles.css']);
-const COACHES_VERSIONED = loadShell('coaches.html', ['coaches.js', 'styles.css']);
-const GAME_VERSIONED = loadShell('game.html', ['game.js', 'styles.css']);
+const INDEX_VERSIONED = loadShell('index.html', ['main.js', 'styles.css', 'theme.js']);
+const RECORDS_VERSIONED = loadShell('records.html', ['records.js', 'styles.css', 'theme.js']);
+const VS_VERSIONED = loadShell('vs.html', ['vs.js', 'styles.css', 'theme.js']);
+const HISTORY_VERSIONED = loadShell('history.html', ['history.js', 'styles.css', 'theme.js']);
+const COACHES_VERSIONED = loadShell('coaches.html', ['coaches.js', 'styles.css', 'theme.js']);
+const GAME_VERSIONED = loadShell('game.html', ['game.js', 'styles.css', 'theme.js']);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
