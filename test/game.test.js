@@ -77,14 +77,16 @@ function liveBox() {
 	const c = s.header.competitions[0]
 	c.status.type = { state: 'in', completed: false, shortDetail: '3rd 4:12' }
 	const gbId = c.competitors.find((t) => t.team.abbreviation === 'GB').team.id
-	s.situation = { downDistanceText: '2nd & 7 at CHI 34', possession: gbId, lastPlay: { text: 'J.Love pass short left to C.Watson for 9 yards' } }
+	// The scoreboard's shape: yardLine from the home goal line, so the
+	// Packers at home on the Bears' 34 are at 66.
+	s.situation = { down: 2, distance: 7, yardLine: 66, downDistanceText: '2nd & 7 at CHI 34', possession: gbId, lastPlay: { text: 'J.Love pass short left to C.Watson for 9 yards' } }
 	return espnBoxscore(s)
 }
 
 test('a game in progress carries down and distance, who has the ball, and the last play', () => {
 	const live = liveBox()
 	assert.equal(live.live, true)
-	assert.deepEqual(live.situation, { downDistance: '2nd & 7 at CHI 34', possession: 'home', lastPlay: 'J.Love pass short left to C.Watson for 9 yards' })
+	assert.deepEqual(live.situation, { yardLine: 66, down: 2, distance: 7, downDistance: '2nd & 7 at CHI 34', possession: 'home', lastPlay: 'J.Love pass short left to C.Watson for 9 yards' })
 	const html = situationHtml(live)
 	assert.match(html, /Packers ball · 2nd &amp; 7 at CHI 34/)
 	assert.match(html, /C\.Watson for 9 yards/)

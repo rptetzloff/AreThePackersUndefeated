@@ -4,6 +4,8 @@
 // tables. Pure functions over that object, so the tests pin the markup and
 // game.js only fetches and redraws.
 
+import { fieldTrackerHtml } from './field-core.js';
+
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const SEASON_TYPE = { 1: 'Preseason', 3: 'Playoffs' };
@@ -168,7 +170,7 @@ export function gameSummaryHtml(box) {
 	}).join('');
 	const scoring = scoringList(box);
 	return `${status}<div class="game-meta">${meta}</div>`
-		+ situationHtml(box)
+		+ (box.drive ? fieldTrackerHtml(box) : situationHtml(box))
 		+ lineScoreTable(box)
 		+ (leaders ? `<div class="summary-leaders-wrap">${leaders}</div>` : '')
 		+ (scoring ? `<h3 class="game-section-title">Scoring</h3>${scoring}` : '')
@@ -235,7 +237,9 @@ function section(title, body) {
 /** The whole page body. `selected` is the team tab the reader picked. */
 export function gamePageHtml(box, selected = null) {
 	return headerHtml(box)
-		+ situationHtml(box)
+		// A game in progress: the field with the drive under way, or, with no
+		// drive to draw, the plain situation line.
+		+ (box.drive ? section('Live', fieldTrackerHtml(box)) : situationHtml(box))
 		+ lineScoreHtml(box)
 		+ scoringHtml(box)
 		+ teamStatsHtml(box)
