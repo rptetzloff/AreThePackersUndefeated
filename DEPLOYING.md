@@ -155,6 +155,35 @@ what stops a stray hostname 404ing from the origin.
 **"Always Use HTTPS" is on.** Without it, `http://arethepackersundefeated.com` is served in the clear
 rather than upgraded — which it was, on the baseball zone, until it was noticed.
 
+**Browser Cache TTL is "Respect Existing Headers".** Set on 18 October 2026,
+after the edge kept an old stylesheet under a new URL (below). Cloudflare
+now follows the server's `Cache-Control`, so what the server says about a
+file is what both the edge and the browser do with it. That makes the
+server's header the one place a caching mistake can be made, which is why
+`lib/static-cache.js` exists.
+
+### An old file under a new URL
+
+Each page links its script and stylesheet as `name?v=<hash of the file>`. A
+versioned URL used to be marked `immutable` for a year whatever was sent
+under it. During a rolling deploy the old server still answers some
+requests, including for the new release's URLs, and it answered those with
+its old file, immutable. On 18 October 2026 the dev site linked
+`styles.css?v=e2afe65f`, the new stylesheet's hash, and Cloudflare served
+the previous stylesheet under it (`cf-cache-status: HIT`), so the new
+summary pop-up rendered unstyled until the zone was purged.
+
+The server now marks a versioned file immutable only when the version asked
+for is the one it has, and sends anything else `no-store`
+(`lib/static-cache.js`). The Brewers repo hit the same thing with `game.js`
+and fixed it the same way.
+
+What it does not fix: a URL already poisoned stays poisoned until purged.
+To check one, compare the hash of what the edge serves with the hash in
+the URL:
+
+    curl -s https://dev.arethepackersundefeated.com/styles.css?v=<v> | sha1sum | cut -c1-8
+
 ### Which of them answered?
 
 `Server: cloudflare` appears on every response through the proxy and identifies

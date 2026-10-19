@@ -18,6 +18,7 @@ import { esc } from './records-core.js';
 import { espnTarget } from './lib/espn-target.js';
 import { createEspnCache, browserMaxAge } from './lib/espn-proxy.js';
 import { espnBoxscore } from './lib/espn-box.js';
+import { staticCacheControl } from './lib/static-cache.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
@@ -25,9 +26,17 @@ const PORT = process.env.PORT || 3000;
 
 // Stamp a short content hash onto local asset refs so a new deploy busts the
 // browser cache automatically (main.js?v=<hash>). Change the file -> new hash.
+// Files do not change while the server runs, so each is hashed once: the
+// static handler asks on every versioned request (lib/static-cache.js).
+const assetVersions = new Map();
 function assetVersion(file) {
-  try { return createHash('sha1').update(readFileSync(join(ROOT, file))).digest('hex').slice(0, 8); }
-  catch { return null; }
+  if (!assetVersions.has(file)) {
+    let v = null;
+    try { v = createHash('sha1').update(readFileSync(join(ROOT, file))).digest('hex').slice(0, 8); }
+    catch { /* not a file */ }
+    assetVersions.set(file, v);
+  }
+  return assetVersions.get(file);
 }
 
 // Load an HTML shell: strip any hardcoded <title>/description/OG/Twitter/
@@ -193,15 +202,11 @@ async function serveStatic(req, res, pathname) {
     const st = await stat(file);
     if (st.isDirectory()) throw new Error('dir');
     const body = await readFile(file);
-    const versioned = /[?&]v=/.test(req.url);
     const ext = extname(file).toLowerCase();
-    // Unversioned JS (module imports like records-core.js can't carry ?v=)
-    // and the data CSVs (whose column shape must match the deployed code)
-    // must revalidate on every load, or a deploy can pair fresh code with
-    // hour-stale data/modules.
-    const cache = versioned ? 'public, max-age=31536000, immutable'
-      : ext === '.js' || ext === '.csv' ? 'no-cache'
-      : 'public, max-age=3600';
+    // Immutable only for the version this server has; see lib/static-cache.js.
+    const asked = new URL(req.url, 'http://x').searchParams.get('v');
+    const rel = safe.replace(/\\/g, '/').replace(/^\//, '');
+    const cache = staticCacheControl({ asked, have: asked == null ? null : assetVersion(rel), ext });
     res.writeHead(200, {
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Cache-Control': cache,
