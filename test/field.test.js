@@ -109,7 +109,7 @@ test('text from ESPN is escaped on the field and in the log', () => {
 	const evil = structuredClone(live)
 	evil.drive.plays[1].text = '<img src=x onerror=1>'
 	evil.away.abbr = '<b>'
-	assert.doesNotMatch(fieldTrackerHtml(evil), /<img src=x|<b>/)
+	assert.doesNotMatch(fieldTrackerHtml(evil), /<img src=x|<b>/i)
 })
 
 // The same live summary with the scoreboard's situation passed in, as the

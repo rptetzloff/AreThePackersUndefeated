@@ -171,10 +171,14 @@ test('text from ESPN is escaped everywhere it lands', () => {
 	const evil = structuredClone(box)
 	evil.away.name = '<img src=x onerror=1>'
 	evil.scoring[0].text = '<script>'
+	evil.scoring[1].text = '<SCRIPT>'
 	evil.drives[0].result = '"><b>'
 	evil.players.away[0].rows[0].name = '<i>'
 	const html = gamePageHtml(evil)
-	assert.doesNotMatch(html, /<img src=x|<script>|"><b>|<i>/)
+	// Case-insensitive: markup is markup whatever its case, and a test that
+	// only looked for lower case would pass with <SCRIPT> getting through.
+	// (CodeQL flagged the case-sensitive version in the release PR.)
+	assert.doesNotMatch(html, /<img src=x|<script>|"><b>|<i>/i)
 })
 
 test('a game not yet played: no scores, the kickoff instead', () => {
