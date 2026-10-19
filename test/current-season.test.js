@@ -88,7 +88,10 @@ test("ESPN's rows replace the file's for the season, so nothing counts twice", (
 test("tonight's win counts in the all-time record against Dallas", () => {
 	const file = parseGames(csvText)
 	const current = parseGames(rowsToCsv(currentSeasonRows({ regular, post }, 2026)))
-	const before = computeHeadToHead(file).opponents.find((o) => o.name === 'Dallas Cowboys')
+	// Against the file without 2026, so the test holds however current the
+	// file is: regenerating it once put this game in, and a comparison with
+	// the file as it stood stopped seeing the +1.
+	const before = computeHeadToHead(file.filter((g) => g.season !== '2026')).opponents.find((o) => o.name === 'Dallas Cowboys')
 	const after = computeHeadToHead(poolCurrentSeason(file, current, 2026)).opponents.find((o) => o.name === 'Dallas Cowboys')
 	assert.equal(after.games, before.games + 1)
 	assert.equal(after.wins, before.wins + 1)
