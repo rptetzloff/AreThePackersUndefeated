@@ -18,7 +18,7 @@ import { h2hMeta, isOpponentSlug } from './lib/h2h.js';
 import { derive } from './lib/derived.js';
 import { currentSeasonRows, rowsToCsv } from './lib/current-season.js';
 import { packersPlayerRows, parsePlayerGames } from './lib/player-stats.js';
-import { CATEGORIES, seasonTables, seasonsOf, leaders } from './stats-core.js';
+import { CATEGORIES, seasonTables, seasonsOf, leaders, playerSummary, gameLog, playerIndex, PLAYER_ID } from './stats-core.js';
 import { esc, parseGames, poolCurrentSeason, seasonBeingPlayed } from './records-core.js';
 import { espnTarget } from './lib/espn-target.js';
 import { createEspnCache, browserMaxAge } from './lib/espn-proxy.js';
@@ -76,6 +76,7 @@ const HISTORY_VERSIONED = loadShell('history.html', ['history.js', 'styles.css',
 const COACHES_VERSIONED = loadShell('coaches.html', ['coaches.js', 'styles.css', 'theme.js']);
 const GAME_VERSIONED = loadShell('game.html', ['game.js', 'styles.css', 'theme.js']);
 const STATS_VERSIONED = loadShell('stats.html', ['stats.js', 'styles.css', 'theme.js']);
+const PLAYER_VERSIONED = loadShell('player.html', ['player.js', 'styles.css', 'theme.js']);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -221,6 +222,43 @@ async function playerGamesNow() {
     : committedPlayerGames;
   statsMemo = { key, rows, seasons: seasonsOf(rows), cache: new Map() };
   return statsMemo;
+}
+
+// /api/players: every player since 1999, for search. /api/player/<id>: one
+// player's seasons and career by category, and a season's game log (the
+// latest, unless ?season= names another of his). Both from the same rows
+// as the Stats page, cached per version of them.
+async function servePlayersApi(res) {
+  const d = await playerGamesNow();
+  if (!d.cache.has('players')) d.cache.set('players', JSON.stringify(playerIndex(d.rows)));
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+  res.end(d.cache.get('players'));
+}
+
+async function servePlayerApi(res, url, id) {
+  const d = await playerGamesNow();
+  const type = STAT_TYPES.has(url.searchParams.get('type')) ? url.searchParams.get('type') : 'REG';
+  const summary = playerSummary(d.rows, id, type);
+  if (!summary) {
+    res.writeHead(404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify({ error: 'No such player' }));
+  }
+  const asked = Number(url.searchParams.get('season'));
+  const season = summary.seasons.includes(asked) ? asked : summary.seasons[0];
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+  res.end(JSON.stringify({ ...summary, log: gameLog(d.rows, id, season) }));
+}
+
+async function servePlayerHtml(req, res, id) {
+  const d = await playerGamesNow();
+  const summary = playerSummary(d.rows, id, 'REG') || playerSummary(d.rows, id, 'ALL');
+  if (!summary) return notFound(res);
+  const origin = originOf(req);
+  return sendPage(res, PLAYER_VERSIONED, {
+    title: `${summary.name} — Packers stats, ${summary.span}`,
+    desc: `${summary.name} (${summary.pos}) with the Green Bay Packers, ${summary.span}: every season and game since 1999.`,
+    img: `${origin}/og/default.png`, canonical: `${origin}/player/${id}`,
+  });
 }
 
 const STAT_TYPES = new Set(['REG', 'POST', 'ALL']);
@@ -489,6 +527,17 @@ const server = http.createServer(async (req, res) => {
       return res.end(cur.csv);
     }
 
+    if (pathname === '/api/players') return await servePlayersApi(res);
+    if (pathname.startsWith('/api/player/')) {
+      const id = pathname.slice('/api/player/'.length);
+      if (!PLAYER_ID.test(id)) return notFound(res);
+      return await servePlayerApi(res, url, id);
+    }
+    if (pathname.startsWith('/player/')) {
+      const id = pathname.slice('/player/'.length).replace(/\/$/, '');
+      if (!PLAYER_ID.test(id)) return notFound(res);
+      return await servePlayerHtml(req, res, id);
+    }
     if (pathname === '/api/stats') return await serveStatsApi(res, url, 'season');
     if (pathname === '/api/stats/leaders') return await serveStatsApi(res, url, 'leaders');
     if (pathname === '/stats' || pathname === '/stats/' || pathname === '/stats.html') {

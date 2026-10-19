@@ -16,6 +16,12 @@
         <h1 class="records-title">Player Stats</h1>
         <p class="records-subtitle">Green Bay Packers · since 1999</p>
 
+        <div class="stats-search">
+            <input id="stats-search" class="h2h-filter" type="search" placeholder="Find a player…" autocomplete="off"
+                   role="combobox" aria-label="Find a player" aria-controls="stats-search-results" aria-expanded="false">
+            <ul id="stats-search-results" class="stats-search-results" role="listbox" hidden></ul>
+        </div>
+
         <div class="stats-views" role="tablist">
             <button type="button" class="stats-view active" role="tab" aria-selected="true" data-view="season">By season</button>
             <button type="button" class="stats-view" role="tab" aria-selected="false" data-view="leaders">Leaders</button>

@@ -332,8 +332,13 @@ stats also start in 1999, its pre-1999 scoring plays (1970–1997) come with
 no stated license, and it says it mixes Pro-Football-Reference into its data
 without saying which.
 
-Still to come: player pages (seasons, career, game log) and search, then
-the box score gaps from pbp.
+~~Still to come: player pages (seasons, career, game log) and search~~ —
+done, for all 646 players since 1999. Building them found 20 rows in 15
+seasons that nflverse credits to no one (a 42-yard completion in 2001, a sack
+in 2003), which the Stats page had summed into a nameless player in those
+seasons' tables; they are skipped now, before that page was released.
+
+Still to come: the box score gaps from pbp.
 
 ### ~~The weekly data update has failed since 15 September 2026~~
 update-data.yml committed to main, and main now requires a pull request and

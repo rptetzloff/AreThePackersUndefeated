@@ -104,6 +104,10 @@ const MAX = new Set(['fg_long', 'pt_long']);
 export function totalsByPlayer(rows) {
 	const out = new Map();
 	for (const r of rows) {
+		// nflverse credits some plays to no one: 20 rows in 15 seasons have
+		// no player id and no name, a 42-yard completion in 2001, a sack in
+		// 2003. Summed, they were a nameless player in that season's table.
+		if (!r.player_id) continue;
 		let t = out.get(r.player_id);
 		if (!t) {
 			t = { id: r.player_id, name: r.player_display_name, pos: r.position, games: 0, seasons: new Set(), latest: '' };
@@ -196,6 +200,82 @@ export function leaders(rows, { type = 'REG', limit = 10 } = {}) {
 		.sort((a, b) => b.value - a.value || a.name.localeCompare(b.name))
 		.slice(0, limit);
 	return Object.fromEntries(LEADER_STATS.map(([key, title, get]) => [key, { title, season: top(bySeason, get), career: top(careers, get) }]));
+}
+
+// The columns that are rates, shown to one decimal always: a completion
+// percentage of 40 is 40.0 and a rating of 106 is 106.0, where number
+// formatting drops the zero.
+const RATE_KEYS = new Set(['pct', 'ypa', 'rate', 'avg', 'fgpct', 'kravg', 'pravg']);
+
+/** A stat as the pages show it: a dash for none, rates to one decimal,
+ *  counts with thousands separators. Returns text, not HTML. */
+export function formatStat(key, v) {
+	if (v == null) return '—';
+	if (typeof v !== 'number') return String(v);
+	return RATE_KEYS.has(key) ? v.toFixed(1) : v.toLocaleString('en-US');
+}
+
+/** nflverse's player ids: "00-0023459". */
+export const PLAYER_ID = /^\d{2}-\d{7}$/;
+
+/** Every player, for search: id, name, position and seasons, by name. */
+export function playerIndex(rows) {
+	return [...totalsByPlayer(rows).values()]
+		.map((t) => ({ id: t.id, name: t.name, pos: t.pos, seasons: seasonSpan(t.seasons) }))
+		.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * One player's page: for each category he has stats in, a row a season and
+ * his Packers career (since 1999) beneath, each computed exactly as the
+ * season tables compute theirs. Null for an id with no rows.
+ */
+export function playerSummary(rows, id, type = 'REG') {
+	const mine = rows.filter((r) => r.player_id === id);
+	if (!mine.length) return null;
+	const all = totalsByPlayer(mine).get(id);
+	const picked = rowsOf(mine, { type });
+	const seasons = seasonsOf(picked).sort((a, b) => a - b);
+	const categories = [];
+	for (const cat of CATEGORIES) {
+		const bySeason = seasons
+			.map((season) => ({ season, row: categoryTable(totalsByPlayer(picked.filter((r) => Number(r.season) === season)), cat)[0] }))
+			.filter((s) => s.row);
+		if (!bySeason.length) continue;
+		const career = categoryTable(totalsByPlayer(picked), cat)[0];
+		categories.push({ key: cat.key, title: cat.title, columns: cat.columns.map(([k, l]) => [k, l]), seasons: bySeason, career });
+	}
+	return {
+		id, name: all.name, pos: all.pos, type,
+		span: seasonSpan(all.seasons),
+		seasons: seasonsOf(mine),
+		categories,
+	};
+}
+
+/**
+ * One player's games in a season, in week order: the week, the opponent,
+ * regular season or playoffs, and his line in each category he has stats in
+ * that season. Categories with nothing for him in a game show empty there.
+ */
+export function gameLog(rows, id, season) {
+	const games = rows.filter((r) => r.player_id === id && Number(r.season) === Number(season));
+	const cats = CATEGORIES.filter((cat) => categoryTable(totalsByPlayer(games), cat).length);
+	return {
+		season: Number(season),
+		categories: cats.map((c) => ({ key: c.key, title: c.title, columns: c.columns.map(([k, l]) => [k, l]) })),
+		games: games
+			// By week: nflverse numbers the playoffs 19 to 22, after every
+			// regular-season week, so this puts them last on its own.
+			.sort((a, b) => Number(a.week) - Number(b.week))
+			.map((g) => {
+				const t = totalsByPlayer([g]);
+				return {
+					week: Number(g.week), type: g.season_type, opponent: g.opponent_team,
+					lines: Object.fromEntries(cats.map((c) => [c.key, categoryTable(t, c)[0] || null])),
+				};
+			}),
+	};
 }
 
 function seasonSpan(set) {

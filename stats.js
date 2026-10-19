@@ -5,6 +5,7 @@
 // in the URL so a view can be linked.
 import { esc } from './records-core.js';
 import { sortItems, wireSortHeaders } from './sortable.js';
+import { formatStat } from './stats-core.js';
 
 const root = document.getElementById('stats-root');
 const seasonSel = document.getElementById('stats-season');
@@ -18,6 +19,41 @@ const state = {
 const sorts = {}; // category key -> { key, dir }
 
 const fmt = (v) => (v == null ? '—' : typeof v === 'number' ? v.toLocaleString('en-US') : esc(v));
+const playerLink = (p) => `<a class="stats-player-link" href="/player/${encodeURIComponent(p.id)}">${esc(p.name)}</a>`;
+
+// --- Search ---
+
+// Every player since 1999, fetched the first time the box is used: about
+// 47KB, small enough to filter here as the reader types.
+let players = null;
+const search = document.getElementById('stats-search');
+const results = document.getElementById('stats-search-results');
+
+async function suggest() {
+	players ??= await getJson('/api/players').catch(() => []);
+	const q = search.value.trim().toLowerCase();
+	const hits = q.length < 2 ? [] : players.filter((p) => p.name.toLowerCase().includes(q))
+		// Names that start with what was typed come first.
+		.sort((a, b) => Number(!a.name.toLowerCase().startsWith(q)) - Number(!b.name.toLowerCase().startsWith(q)))
+		.slice(0, 8);
+	results.innerHTML = hits.map((p, i) => `<li role="option" id="stats-hit-${i}"><a href="/player/${encodeURIComponent(p.id)}">${esc(p.name)}<span class="stats-search-meta">${esc(p.pos)} · ${esc(p.seasons)}</span></a></li>`).join('');
+	results.hidden = !hits.length;
+	search.setAttribute('aria-expanded', String(hits.length > 0));
+}
+
+search.addEventListener('input', suggest);
+search.addEventListener('keydown', (e) => {
+	const links = [...results.querySelectorAll('a')];
+	if (e.key === 'Enter' && links.length) { e.preventDefault(); location.href = links[0].href; }
+	if (e.key === 'ArrowDown' && links.length) { e.preventDefault(); links[0].focus(); }
+	if (e.key === 'Escape') { results.hidden = true; search.setAttribute('aria-expanded', 'false'); }
+});
+results.addEventListener('keydown', (e) => {
+	const links = [...results.querySelectorAll('a')];
+	const i = links.indexOf(document.activeElement);
+	if (e.key === 'ArrowDown' && i < links.length - 1) { e.preventDefault(); links[i + 1].focus(); }
+	if (e.key === 'ArrowUp') { e.preventDefault(); (i > 0 ? links[i - 1] : search).focus(); }
+});
 
 function saveUrl() {
 	const p = new URLSearchParams();
@@ -40,8 +76,8 @@ function tableHtml(cat, rows) {
 	const sorted = sortItems(rows, s);
 	const head = `<tr><th data-sort="name" data-dir="asc" class="stats-player">Player</th><th data-sort="pos" data-dir="asc">Pos</th><th data-sort="g" class="h2h-num">G</th>`
 		+ cat.columns.map(([key, label]) => `<th data-sort="${key}" class="h2h-num">${esc(label)}</th>`).join('') + '</tr>';
-	const body = sorted.map((r) => `<tr><th scope="row" class="stats-player">${esc(r.name)}</th><td>${esc(r.pos)}</td><td class="h2h-num">${r.g}</td>`
-		+ cat.columns.map(([key]) => `<td class="h2h-num">${fmt(r[key])}</td>`).join('') + '</tr>').join('');
+	const body = sorted.map((r) => `<tr><th scope="row" class="stats-player">${playerLink(r)}</th><td>${esc(r.pos)}</td><td class="h2h-num">${r.g}</td>`
+		+ cat.columns.map(([key]) => `<td class="h2h-num">${esc(formatStat(key, r[key]))}</td>`).join('') + '</tr>').join('');
 	return `<section class="stats-section" data-cat="${cat.key}"><h2 class="game-section-title">${esc(cat.title)}</h2>`
 		+ `<div class="game-table-wrap"><table class="game-table h2h-table stats-table"><thead>${head}</thead><tbody>${body}</tbody></table></div></section>`;
 }
@@ -68,7 +104,7 @@ async function showSeason() {
 
 function leaderList(entries, career) {
 	if (!entries.length) return '<p class="record-empty">None.</p>';
-	return `<ol class="stats-leaders">${entries.map((e) => `<li><div class="stats-leader-row"><span class="stats-leader-name">${esc(e.name)}</span>`
+	return `<ol class="stats-leaders">${entries.map((e) => `<li><div class="stats-leader-row"><span class="stats-leader-name">${playerLink(e)}</span>`
 		+ `<span class="stats-leader-when">${esc(career ? e.seasons : e.season)}</span>`
 		+ `<span class="stats-leader-value">${fmt(e.value)}</span></div></li>`).join('')}</ol>`;
 }
