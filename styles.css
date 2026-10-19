@@ -733,6 +733,7 @@ details:not([open]) > .collapsible-summary::before {
 .sched-link {
     display: inline-flex;
     align-items: center;
+    gap: 0.2rem;
     background: transparent;
     border: 1px solid rgba(255, 182, 18, 0.3);
     border-radius: 6px;
@@ -752,6 +753,10 @@ details:not([open]) > .collapsible-summary::before {
     border-color: #ffb612;
     outline: none;
 }
+
+/* Icons on a wide row, words on a phone's second line. */
+.sched-link .mdi { font-size: 0.95rem; }
+.sched-link-label { display: none; }
 
 .sched-win { border-left-color: #4CAF50; }
 .sched-win .sched-out { color: #4CAF50; }
@@ -774,6 +779,7 @@ details:not([open]) > .collapsible-summary::before {
     }
     .sched-tv { text-align: left; }
     .sched-links { justify-content: flex-start; margin-top: 0.15rem; }
+    .sched-link-label { display: inline; }
 }
 
 /* --- Home page layout --- */
@@ -2065,6 +2071,270 @@ th.sorted-desc::after {
         display: none;
     }
     .coaches-table thead th:first-child {
+        display: none;
+    }
+}
+
+/* --- Game page (game.html, game-core.js) --- */
+
+.game-container {
+    max-width: 960px;
+}
+
+/* The two teams either side of an @, each with its record and score. */
+.game-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 1rem;
+    margin: 1.5rem 0 0.5rem;
+}
+
+.game-team {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.game-team-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.game-team-ours .game-team-name {
+    color: #ffb612;
+}
+
+.game-team-record {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.game-team-score {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.game-team-won .game-team-score {
+    color: #fff;
+}
+
+.game-at {
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.game-status-line {
+    font-weight: 700;
+    color: #ffb612;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.85rem;
+}
+
+.game-status-live {
+    color: #ff6b6b;
+}
+
+.game-meta {
+    margin: 0.35rem 0 1.25rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.game-situation {
+    margin: 0 auto 1.25rem;
+    max-width: 572px;
+    padding: 0.6rem 0.9rem;
+    border-left: 3px solid #ff0000;
+    border-radius: 6px;
+    background: rgba(255, 0, 0, 0.1);
+    text-align: left;
+}
+
+.game-sit-ball {
+    font-weight: 700;
+}
+
+.game-sit-play {
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.game-section {
+    margin: 0 0 1.25rem;
+    text-align: left;
+}
+
+.game-section > .collapsible-summary {
+    margin-bottom: 0.4rem;
+}
+
+.game-section-ours > .collapsible-summary {
+    color: #ffb612;
+}
+
+/* Tables scroll sideways inside their own box on a phone; the page never
+   does. */
+.game-table-wrap {
+    overflow-x: auto;
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(255, 182, 18, 0.25);
+    border-radius: 8px;
+}
+
+.game-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.game-table th,
+.game-table td {
+    padding: 0.35rem 0.6rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    text-align: right;
+    white-space: nowrap;
+}
+
+.game-table thead th {
+    color: #ffb612;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    background: #1a2e28;
+}
+
+.game-table tbody th {
+    text-align: left;
+    font-weight: 600;
+}
+
+.game-row-ours {
+    background: rgba(255, 182, 18, 0.08);
+}
+
+.game-total {
+    font-weight: 800;
+}
+
+.game-total-row th,
+.game-total-row td {
+    font-weight: 700;
+    border-top: 1px solid rgba(255, 182, 18, 0.3);
+}
+
+.game-linescore th:first-child,
+.game-linescore td:first-child {
+    text-align: left;
+}
+
+/* Team stats: the label in the middle, each side's number next to it. */
+.game-teamstats td {
+    width: 25%;
+}
+
+.game-teamstats td:first-child {
+    text-align: right;
+}
+
+.game-teamstats td:last-child {
+    text-align: left;
+}
+
+.game-teamstats tbody th {
+    text-align: center;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.game-teamstats thead th:first-child {
+    text-align: right;
+}
+
+.game-teamstats thead th:last-child {
+    text-align: left;
+}
+
+.game-player-col {
+    position: sticky;
+    left: 0;
+    background: #203731;
+    text-align: left !important;
+}
+
+.game-players thead .game-player-col {
+    background: #1a2e28;
+}
+
+.game-quarter {
+    margin: 0.6rem 0 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+/* One scoring play: team, type, what happened with the clock, the score. */
+.game-score-play {
+    display: grid;
+    grid-template-columns: 2.6rem 2.6rem minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    align-items: baseline;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.88rem;
+}
+
+.game-sp-team {
+    font-weight: 700;
+}
+
+.game-sp-type {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.75rem;
+}
+
+.game-sp-clock {
+    margin-left: 0.4rem;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 0.75rem;
+}
+
+.game-sp-score {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.game-drives td {
+    text-align: left;
+}
+
+.game-drive-score .game-drive-result {
+    color: #4CAF50;
+    font-weight: 700;
+}
+
+@media (max-width: 480px) {
+    .game-team-name {
+        font-size: 0.95rem;
+    }
+    .game-team-score {
+        font-size: 2.2rem;
+    }
+    .game-score-play {
+        grid-template-columns: 2.4rem minmax(0, 1fr) auto;
+    }
+    .game-sp-type {
         display: none;
     }
 }

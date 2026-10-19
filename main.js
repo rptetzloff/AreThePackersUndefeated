@@ -803,7 +803,9 @@ markActiveMonth() {
         tv: upcoming && network ? [network] : [],
         // H2H only on the current season's schedule (offseason included).
         h2h: this.currentSeason === this.latestSeason ? this.h2hLink(opp.team?.displayName) : null,
+        // A game played or being played: its box score page and ESPN's.
         links: upcoming || state === 'postponed' ? null : {
+          box: `/game/${encodeURIComponent(event.id)}`,
           espn: `https://www.espn.com/nfl/game/_/gameId/${encodeURIComponent(event.id)}`,
         },
       };
@@ -989,9 +991,7 @@ if (isCompleted) {
 }
 
 const scoreLink = document.createElement('a');
-scoreLink.href = `https://www.espn.com/nfl/game/_/gameId/${event.id}`;
-scoreLink.target = '_blank';
-scoreLink.rel = 'noopener noreferrer';
+scoreLink.href = `/game/${encodeURIComponent(event.id)}`;
 scoreLink.textContent = `${resultIndicator}${packersScore}-${opponentScore}`;
 scoreLink.style.color = 'inherit';
 scoreLink.style.textDecoration = 'none';
@@ -1006,9 +1006,7 @@ gameItem.appendChild(scoreDiv);
  scoreDiv.className = 'game-score live';
 
  const scoreLink = document.createElement('a');
- scoreLink.href = `https://www.espn.com/nfl/game/_/gameId/${event.id}`;
- scoreLink.target = '_blank';
- scoreLink.rel = 'noopener noreferrer';
+ scoreLink.href = `/game/${encodeURIComponent(event.id)}`;
  scoreLink.textContent = `${packersScore}-${opponentScore}`;
  scoreLink.style.color = 'inherit';
  scoreLink.style.textDecoration = 'none';

@@ -21,10 +21,13 @@ test('a row carries the all-time head-to-head after the opponent, linked to its 
 	assert.doesNotMatch(scheduleRowHtml(row()), /sched-h2h/)
 })
 
-test("a played game links to ESPN, and only to ESPN: there is no box score page here yet", () => {
-	const html = scheduleRowHtml(row({ state: 'win', text: 'W 27-17', links: { espn: 'https://www.espn.com/nfl/game/_/gameId/401873007' } }))
+test("a played game links to its box score page, then to ESPN's in a new tab", () => {
+	const html = scheduleRowHtml(row({ state: 'win', text: 'W 27-17', links: { box: '/game/401873007', espn: 'https://www.espn.com/nfl/game/_/gameId/401873007' } }))
+	assert.match(html, /<a class="sched-link" href="\/game\/401873007"[^>]*>.*Box<\/span><\/a><a class="sched-link sched-link-espn"/)
 	assert.match(html, /href="https:\/\/www\.espn\.com\/nfl\/game\/_\/gameId\/401873007" target="_blank" rel="noopener noreferrer"/)
-	assert.doesNotMatch(html, /data-act="summary"|href="\/game\//)
+	// The box score is this site's own page: same tab.
+	assert.doesNotMatch(html.slice(0, html.indexOf('sched-link-espn')), /target="_blank"/)
+	assert.doesNotMatch(html, /data-act="summary"/)
 	assert.doesNotMatch(scheduleRowHtml(row()), /sched-links/)
 })
 
