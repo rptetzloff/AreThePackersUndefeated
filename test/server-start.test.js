@@ -5,9 +5,14 @@ import { fileURLToPath } from 'node:url'
 
 // server.js reads its data files at the top level, so a load in the wrong
 // place (one above the const it uses) throws before it listens, and no test
-// of the modules it imports can see that.
+// of the modules it imports can see that. The card renderer's two packages
+// are stubbed (helpers/stub-packages.mjs): CI installs nothing, and starting
+// up does not render a card.
 test('server.js starts and listens', async () => {
-	const child = spawn(process.execPath, [fileURLToPath(new URL('../server.js', import.meta.url))], {
+	const child = spawn(process.execPath, [
+		'--import', new URL('./helpers/stub-packages.mjs', import.meta.url).href,
+		fileURLToPath(new URL('../server.js', import.meta.url)),
+	], {
 		env: { ...process.env, PORT: '0' },
 		stdio: ['ignore', 'pipe', 'pipe'],
 	})
