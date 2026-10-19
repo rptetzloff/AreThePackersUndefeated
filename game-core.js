@@ -35,7 +35,7 @@ export function headerHtml(box) {
 	const { away, home } = box;
 	const played = box.state !== 'pre';
 	const teamHtml = (t, s) => `<div class="game-team${box.teamSide === s ? ' game-team-ours' : ''}${box.final && t.winner ? ' game-team-won' : ''}">`
-		+ `<div class="game-team-name">${esc(t.name)}</div>`
+		+ `<div class="game-team-name">${esc(t.name)}${box.live && box.situation?.possession === s ? ' <i class="mdi mdi-football game-ball" aria-label="has the ball" title="Has the ball"></i>' : ''}</div>`
 		+ (t.record ? `<div class="game-team-record">${esc(t.record)}</div>` : '')
 		+ (played ? `<div class="game-team-score">${esc(t.score)}</div>` : '')
 		+ '</div>';

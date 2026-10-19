@@ -104,14 +104,38 @@ export function driveLogHtml(box) {
 	return `<div class="drive-log"><div class="drive-log-head">${head}</div><ol class="drive-plays">${rows}</ol></div>`;
 }
 
-/** The tracker: the situation line, the field, and the drive's plays. Empty
- *  when the game has no drive to show. */
+/**
+ * The strip over the field: each side's abbreviation, score and timeouts
+ * left, and a football by the side with the ball. Home on the left, as the
+ * field's end zones are, so the strip and the field read the same way.
+ * Timeouts show only when the scoreboard gave them; three dots a side,
+ * filled for each one left.
+ */
+export function scorebugHtml(box) {
+	const sit = box.situation;
+	const side = (s) => {
+		const t = box[s];
+		const left = sit?.timeouts?.[s];
+		const dots = left == null ? ''
+			: `<span class="bug-timeouts" title="${left} timeout${left === 1 ? '' : 's'} left" aria-label="${left} timeout${left === 1 ? '' : 's'} left">`
+				+ [0, 1, 2].map((i) => `<span class="bug-to${i < left ? ' bug-to-left' : ''}"></span>`).join('') + '</span>';
+		const ball = sit?.possession === s ? '<i class="mdi mdi-football bug-ball" aria-label="has the ball"></i>' : '';
+		return `<div class="bug-team bug-${s}${box.teamSide === s ? ' bug-ours' : ''}${sit?.possession === s ? ' bug-has-ball' : ''}">`
+			+ `<span class="bug-abbr">${esc(t.abbr)}</span>${ball}<span class="bug-score">${esc(t.score)}</span>${dots}</div>`;
+	};
+	return `<div class="field-bug">${side('home')}<div class="bug-status">${esc(box.status || '')}</div>${side('away')}</div>`;
+}
+
+/** The tracker: the strip with score, timeouts and ball, the situation
+ *  line, the field, and the drive's plays. Empty when the game has no drive
+ *  to show. */
 export function fieldTrackerHtml(box) {
 	if (!box.drive && !box.situation) return '';
 	const sit = box.situation;
 	const ball = sit?.possession ? `<strong>${esc(box[sit.possession].short)} ball</strong>` : '';
 	const line = [ball, sit?.downDistance && esc(sit.downDistance)].filter(Boolean).join(' · ');
 	return `<div class="field-tracker">`
+		+ scorebugHtml(box)
 		+ (line ? `<div class="field-sit">${line}</div>` : '')
 		+ fieldSvg(box)
 		+ driveLogHtml(box)

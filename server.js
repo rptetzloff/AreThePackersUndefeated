@@ -246,15 +246,28 @@ async function serveEspnProxy(res, path, search) {
 // the same cache as the proxy, so a live game is 15 seconds old at most.
 const ESPN_GAME_ID = /^\d{6,12}$/;
 const boxMemo = new Map(); // event id -> { at, box }
+// A game in progress also reads this week's scoreboard, through the same
+// cache, for its clock, scores and situation: the summary has no timeouts
+// left, often no one in possession, and can be a refresh behind
+// (lib/espn-box.js).
 async function espnBox(eventId) {
   const got = await espn.get(espnTarget('apis/site/v2/sports/football/nfl/summary', `event=${eventId}`));
   if (!got || got.status !== 200) return null;
+  let summary;
+  try { summary = JSON.parse(got.body); } catch { return null; }
+  const live = summary?.header?.competitions?.[0]?.status?.type?.state === 'in';
+  const sb = live ? await espn.get(espnTarget('apis/site/v2/sports/football/nfl/scoreboard')) : null;
+  const key = `${got.at}|${sb?.at ?? ''}`;
   const memo = boxMemo.get(eventId);
-  if (memo && memo.at === got.at) return memo.box;
+  if (memo && memo.key === key) return memo.box;
+  let scoreboard = null;
+  if (sb?.status === 200) {
+    try { scoreboard = JSON.parse(sb.body).events?.find((e) => String(e.id) === String(eventId))?.competitions?.[0] || null; } catch { /* not on it */ }
+  }
   let box = null;
-  try { box = espnBoxscore(JSON.parse(got.body)); } catch { /* not a game */ }
+  try { box = espnBoxscore(summary, { scoreboard }); } catch { /* not a game */ }
   if (boxMemo.size > 100) boxMemo.clear();
-  boxMemo.set(eventId, { at: got.at, box });
+  boxMemo.set(eventId, { key, box });
   return box;
 }
 

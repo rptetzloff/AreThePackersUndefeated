@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { espnBoxscore } from '../lib/espn-box.js'
-import { fieldSvg, driveLogHtml, fieldTrackerHtml, lineToGain, playKind, MAX_ARROWS } from '../field-core.js'
-import { gamePageHtml, gameSummaryHtml } from '../game-core.js'
+import { fieldSvg, driveLogHtml, fieldTrackerHtml, scorebugHtml, lineToGain, playKind, MAX_ARROWS } from '../field-core.js'
+import { gamePageHtml, gameSummaryHtml, headerHtml } from '../game-core.js'
 
 // Dallas at Green Bay, 18 October 2026, 11:13 left in the 1st, captured
 // live and trimmed. The Cowboys' opening drive has just ended in a punt to
@@ -30,7 +30,7 @@ test("ESPN's official timeout is not a play: not listed, not drawn, not the last
 test('the situation is where the punt left it: the Packers 1st & 10 at their 10', () => {
 	assert.deepEqual(
 		{ ...live.situation, lastPlay: undefined },
-		{ yardLine: 10, down: 1, distance: 10, downDistance: '1st & 10 at GB 10', possession: 'home', lastPlay: undefined },
+		{ yardLine: 10, down: 1, distance: 10, downDistance: '1st & 10 at GB 10', possession: 'home', lastPlay: undefined, timeouts: null },
 	)
 })
 
@@ -110,4 +110,69 @@ test('text from ESPN is escaped on the field and in the log', () => {
 	evil.drive.plays[1].text = '<img src=x onerror=1>'
 	evil.away.abbr = '<b>'
 	assert.doesNotMatch(fieldTrackerHtml(evil), /<img src=x|<b>/)
+})
+
+// The same live summary with the scoreboard's situation passed in, as the
+// server does: these are ESPN's fields, Dallas with the ball at its own 49.
+const liveSummary = JSON.parse(readFileSync(new URL('./fixtures/espn-live-401873007.json', import.meta.url), 'utf8'))
+const withBoard = (situation, extra = {}) => espnBoxscore(liveSummary, { scoreboard: { situation, ...extra } })
+const board = { down: 2, distance: 8, yardLine: 51, downDistanceText: '2nd & 8 at DAL 49', possession: '6', homeTimeouts: 3, awayTimeouts: 2 }
+
+test("the scoreboard's situation wins, with each side's timeouts left", () => {
+	const b = withBoard(board)
+	assert.deepEqual({ ...b.situation, lastPlay: undefined }, {
+		yardLine: 51, down: 2, distance: 8, downDistance: '2nd & 8 at DAL 49', possession: 'away', lastPlay: undefined,
+		timeouts: { away: 2, home: 3 },
+	})
+})
+
+test('between plays ESPN names no one with the ball: possession falls back, and no down is shown', () => {
+	// After a score ESPN sent down -1, no possession, no down and distance.
+	const b = withBoard({ down: -1, yardLine: 85, distance: 0, isRedZone: true, homeTimeouts: 3, awayTimeouts: 3 })
+	assert.equal(b.situation.down, 0)
+	assert.equal(b.situation.downDistance, '')
+	// The last play here is Dallas's punt, which ends with the Packers.
+	assert.equal(b.situation.possession, 'home')
+	assert.equal(lineToGain(b.situation), null)
+})
+
+test('the strip: home on the left as the field is, scores, three dots a side filled for each left, the ball by its team', () => {
+	const html = scorebugHtml(withBoard(board))
+	assert.ok(html.indexOf('bug-home') < html.indexOf('bug-status') && html.indexOf('bug-status') < html.indexOf('bug-away'))
+	const dots = (s) => {
+		const part = html.slice(html.indexOf(`bug-${s}`))
+		const t = part.slice(part.indexOf('bug-timeouts'), part.indexOf('</span></div>'))
+		return [(t.match(/class="bug-to bug-to-left"/g) || []).length, (t.match(/class="bug-to/g) || []).length]
+	}
+	assert.deepEqual(dots('home'), [3, 3])
+	assert.deepEqual(dots('away'), [2, 3])
+	assert.match(html, /title="2 timeouts left"/)
+	// The football sits with Dallas, and only there.
+	assert.equal((html.match(/mdi-football/g) || []).length, 1)
+	assert.match(html, /bug-away bug-has-ball"><span class="bug-abbr">DAL<\/span><i class="mdi mdi-football bug-ball"/)
+})
+
+test('no timeouts from the scoreboard: no dots, rather than a guess from timeoutsUsed', () => {
+	assert.equal(live.situation.timeouts, null)
+	assert.doesNotMatch(scorebugHtml(live), /bug-timeouts/)
+	assert.match(fieldTrackerHtml(live), /class="field-bug"/)
+})
+
+test("the game page's header puts the football by the team with the ball, during a game only", () => {
+	assert.match(headerHtml(withBoard(board)), /Dallas Cowboys <i class="mdi mdi-football game-ball"/)
+	const final = espnBoxscore(JSON.parse(readFileSync(new URL('./fixtures/espn-final-401872990.json', import.meta.url), 'utf8')))
+	assert.doesNotMatch(headerHtml(final), /mdi-football/)
+})
+
+test("during a game the scoreboard's clock and scores win, so one card never shows two", () => {
+	const ids = Object.fromEntries(liveSummary.header.competitions[0].competitors.map((c) => [c.homeAway, c.team.id]))
+	const b = withBoard(board, {
+		status: { type: { state: 'in', completed: false, shortDetail: '4:39 - 1st' } },
+		competitors: [{ team: { id: ids.home }, score: '7' }, { team: { id: ids.away }, score: '0' }],
+	})
+	assert.equal(b.status, '4:39 - 1st')
+	assert.deepEqual([b.home.score, b.away.score], ['7', '0'])
+	assert.match(scorebugHtml(b), /<div class="bug-status">4:39 - 1st<\/div>/)
+	// Without a scoreboard, the summary's own.
+	assert.equal(live.status, '11:13 - 1st')
 })
