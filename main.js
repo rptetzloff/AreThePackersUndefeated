@@ -1,6 +1,7 @@
         import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml } from './records-core.js';
 import { SITE } from './site.js';
 import { scheduleListHtml, monthChipsHtml } from './schedule-core.js';
+import { gameSummaryHtml, gameTitle } from './game-core.js';
 import { seasonVerdict } from './lib/season-state.js';
         import { computeHeadToHead, canonicalOpponent } from './h2h-core.js';
         import { buildChartSvg } from './history-chart.js';
@@ -89,6 +90,7 @@ import { seasonVerdict } from './lib/season-state.js';
         				});
         			}
         			this.initGallery();
+        			this.initSummaryModal();
         			this.buildOnThisDay();
         			const params = new URLSearchParams(window.location.search);
         			const seasonParam = params.get('season');
@@ -404,6 +406,21 @@ wireSchedule() {
   this._scheduleWired = true;
   const grid = document.getElementById('schedule-grid');
   const chips = document.getElementById('schedule-months');
+  // A played game's row opens its summary; so does its Summary button. Box,
+  // ESPN and the head-to-head link follow their own hrefs and must not also
+  // open the summary behind them. The row's keyboard handling leaves the
+  // links to their own Enter.
+  grid.addEventListener('click', (e) => {
+    const link = e.target.closest('.sched-link, .sched-h2h');
+    if (link && link.dataset.act !== 'summary') return;
+    const row = e.target.closest('.sched-row.sched-click');
+    if (row) this.openGameSummary(row.dataset.key, row);
+  });
+  grid.addEventListener('keydown', (e) => {
+    if (e.target.closest('.sched-link, .sched-h2h')) return;
+    const row = e.target.closest('.sched-row.sched-click');
+    if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); this.openGameSummary(row.dataset.key, row); }
+  });
   chips.addEventListener('click', (e) => {
     const chip = e.target.closest('.sched-chip');
     if (!chip) return;
@@ -803,12 +820,64 @@ markActiveMonth() {
         tv: upcoming && network ? [network] : [],
         // H2H only on the current season's schedule (offseason included).
         h2h: this.currentSeason === this.latestSeason ? this.h2hLink(opp.team?.displayName) : null,
-        // A game played or being played: its box score page and ESPN's.
+        // A game played or being played: its summary pop-up, which a click
+        // anywhere on the row also opens, its box score page, and ESPN's.
         links: upcoming || state === 'postponed' ? null : {
+          summary: true,
           box: `/game/${encodeURIComponent(event.id)}`,
           espn: `https://www.espn.com/nfl/game/_/gameId/${encodeURIComponent(event.id)}`,
         },
+        clickable: !upcoming && state !== 'postponed',
+        title: !upcoming && state !== 'postponed' ? 'Summary' : '',
       };
+    }
+
+    // The schedule's pop-up for one game: the box score's summary
+    // (game-core.js), from /api/boxscore/<id>, which the server reduces from
+    // ESPN's 600KB summary to about 15KB. Focus goes back to the row that
+    // opened it.
+    async openGameSummary(id, opener) {
+      const modal = document.getElementById('summary-modal');
+      const title = document.getElementById('summary-title');
+      const body = document.getElementById('summary-body');
+      this._summaryOpener = opener || null;
+      this._summaryId = id;
+      title.textContent = 'Game Summary';
+      body.innerHTML = '<div class="loading">Loading…</div>';
+      modal.hidden = false;
+      document.body.style.overflow = 'hidden';
+      document.getElementById('summary-close').focus();
+      try {
+        const res = await fetch(`/api/boxscore/${encodeURIComponent(id)}`, { cache: 'no-cache' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const box = await res.json();
+        // A slow answer for a game the reader has since closed or replaced.
+        if (this._summaryId !== id || modal.hidden) return;
+        title.textContent = gameTitle(box);
+        body.innerHTML = gameSummaryHtml(box);
+      } catch (err) {
+        if (this._summaryId !== id) return;
+        body.innerHTML = `<p class="record-empty">Could not load this game. <a href="/game/${encodeURIComponent(id)}">Open its box score</a> instead.</p>`;
+        console.error('Summary error:', err);
+      }
+    }
+
+    closeGameSummary() {
+      const modal = document.getElementById('summary-modal');
+      if (modal.hidden) return;
+      modal.hidden = true;
+      this._summaryId = null;
+      document.body.style.overflow = '';
+      this._summaryOpener?.focus();
+    }
+
+    initSummaryModal() {
+      const modal = document.getElementById('summary-modal');
+      modal.querySelector('.gallery-backdrop').addEventListener('click', () => this.closeGameSummary());
+      document.getElementById('summary-close').addEventListener('click', () => this.closeGameSummary());
+      document.addEventListener('keydown', (e) => {
+        if (!modal.hidden && e.key === 'Escape') this.closeGameSummary();
+      });
     }
 
 createGameItem(event, nextGame, liveGame, now) {

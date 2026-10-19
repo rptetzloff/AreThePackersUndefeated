@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { espnBoxscore } from '../lib/espn-box.js'
-import { gamePageHtml, gameTitle, headerHtml, lineScoreHtml, scoringHtml, teamStatsHtml, playersHtml, teamTabsHtml, drivesHtml, situationHtml, quarterName, longDate } from '../game-core.js'
+import { gamePageHtml, gameTitle, headerHtml, lineScoreHtml, scoringHtml, teamStatsHtml, playersHtml, teamTabsHtml, drivesHtml, situationHtml, quarterName, longDate, leadersOf, gameSummaryHtml } from '../game-core.js'
 
 // A real summary, trimmed to the fields espn-box.js reads: Bears at Packers,
 // 11 October 2026, 31-7. The trimming was checked to reduce to the same box
@@ -184,4 +184,41 @@ test('a game not yet played: no scores, the kickoff instead', () => {
 	assert.doesNotMatch(headerHtml({ ...pre, status: '10/18 - 8:20 PM EDT' }), /EDT|game-status-line/)
 	assert.equal(longDate('2026-10-11'), 'Sunday, October 11, 2026')
 	assert.ok(drivesHtml({ ...box, drives: [] }) === '')
+})
+
+test("each side's leaders: the top passer, rusher and receiver by yards, not ESPN's first row", () => {
+	assert.deepEqual(leadersOf(box, 'home'), [
+		{ title: 'Passing', name: 'Jordan Love', line: '25/31, 367 YDS, 2 TD' },
+		{ title: 'Rushing', name: 'MarShawn Lloyd', line: '10 CAR, 31 YDS, 2 TD' },
+		{ title: 'Receiving', name: 'Christian Watson', line: '6 REC, 143 YDS, 2 TD' },
+	])
+	// An interception is named; no touchdowns on the ground or in the air
+	// are left out rather than said as zero, except for the passer.
+	assert.deepEqual(leadersOf(box, 'away').map((l) => l.line), ['11/19, 108 YDS, 0 TD, 1 INT', '9 CAR, 43 YDS, 1 TD', '4 REC, 47 YDS'])
+	// By yards: put the backup first and the starter still leads.
+	const swapped = structuredClone(box)
+	const passing = swapped.players.away.find((c) => c.key === 'passing')
+	passing.rows.reverse()
+	assert.equal(leadersOf(swapped, 'away')[0].name, 'Case Keenum')
+})
+
+test('the summary: status, where and when with the crowd, score by quarter, leaders ours first, scoring, the way on', () => {
+	const html = gameSummaryHtml(box)
+	assert.match(html, /<div class="game-status-line">Final<\/div>/)
+	assert.match(html, /Sunday, October 11, 2026 · Lambeau Field, Green Bay, WI · Att: 77,755 · Fox/)
+	assert.match(html, /<th>1<\/th><th>2<\/th><th>3<\/th><th>4<\/th><th>T<\/th>/)
+	assert.ok(html.indexOf('summary-leaders summary-leaders-ours') < html.indexOf('>Bears</div>'))
+	assert.match(html, /Christian Watson 42 Yd pass from Jordan Love/)
+	assert.match(html, /<a class="summary-box-link" href="\/game\/401872990">Full Box Score/)
+	assert.match(html, /href="https:\/\/www\.espn\.com\/nfl\/game\/_\/gameId\/401872990" target="_blank" rel="noopener noreferrer"/)
+	// No section headings but Scoring: it is a pop-up, not the page.
+	assert.deepEqual([...html.matchAll(/class="game-section-title">([^<]+)</g)].map((m) => m[1]), ['Scoring'])
+})
+
+test('a live summary leads with the situation; one with no stats yet has no leaders block', () => {
+	const live = gameSummaryHtml(liveBox())
+	assert.match(live, /game-status-live/)
+	assert.match(live, /Packers ball/)
+	const bare = gameSummaryHtml({ ...box, players: { away: [], home: [] }, scoring: [] })
+	assert.doesNotMatch(bare, /summary-leaders|game-section-title/)
 })

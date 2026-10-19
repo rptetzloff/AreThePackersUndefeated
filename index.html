@@ -134,6 +134,18 @@
         </div>
     </div>
 
+    <!-- A played game's summary, opened from its schedule row. -->
+    <div id="summary-modal" class="gallery-modal" role="dialog" aria-modal="true" aria-labelledby="summary-title" hidden>
+        <div class="gallery-backdrop"></div>
+        <div class="gallery-dialog summary-dialog">
+            <div class="gallery-header">
+                <h2 id="summary-title" class="gallery-title"></h2>
+                <button id="summary-close" class="gallery-close" aria-label="Close summary"><i class="mdi mdi-close"></i></button>
+            </div>
+            <div id="summary-body" class="summary-body"></div>
+        </div>
+    </div>
+
     <script src="main.js" type="module"></script>
 </body>
 </html>

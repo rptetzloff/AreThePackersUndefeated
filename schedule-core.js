@@ -31,7 +31,8 @@ export const monthShort = (key) => SHORT[monthIndex(key)];
 
 /**
  * One game's row. `row` is
- *   { key, date: Date, opp, home, state, text, tv: [labels], h2h, links }
+ *   { key, date: Date, opp, home, state, text, tv: [labels], h2h, links,
+ *     clickable, title }
  * where state is 'win' | 'loss' | 'tie' | 'live' | 'next' | 'upcoming' |
  * 'postponed', and text the result ("W 6-2"), the score of a live game, or
  * the start time. `h2h` is { href, text, title } for the all-time record
@@ -44,7 +45,14 @@ export function scheduleRowHtml(row) {
 	const h2h = row.h2h
 		? ` <a class="sched-h2h" href="${esc(row.h2h.href)}" title="${esc(row.h2h.title)}">${esc(row.h2h.text)}</a>`
 		: '';
-	return `<div class="sched-row sched-${esc(row.state)}" data-key="${esc(row.key)}">`
+	// A row that opens something is a button for the keyboard too.
+	const attrs = [
+		`class="sched-row sched-${esc(row.state)}${row.clickable ? ' sched-click' : ''}"`,
+		`data-key="${esc(row.key)}"`,
+		row.clickable ? 'role="button" tabindex="0"' : '',
+		row.title ? `title="${esc(row.title)}"` : '',
+	].filter(Boolean).join(' ');
+	return `<div ${attrs}>`
 		+ `<span class="sched-date">${when}</span>`
 		+ `<span class="sched-opp">${row.home ? 'vs' : '@'} ${esc(row.opp)}${h2h}</span>`
 		+ `<span class="sched-out">${row.state === 'live' ? '<span class="live-indicator-small"></span>' : ''}${esc(row.text)}</span>`
@@ -53,12 +61,12 @@ export function scheduleRowHtml(row) {
 		+ '</div>';
 }
 
-/** A played or live game's links: its box score page and ESPN's page for
- *  it. `links` is { box: '/game/…', espn: 'https://…' }, either of them.
- *  The Brewers rows also carry a line-score pop-up, which this site does
- *  not have. */
+/** A played or live game's links: its summary pop-up, its box score page,
+ *  and ESPN's page for it. `links` is { summary: true, box: '/game/…',
+ *  espn: 'https://…' }, any of them, as on the Brewers rows. */
 function rowLinksHtml(links) {
 	const out = [];
+	if (links?.summary) out.push('<button type="button" class="sched-link" data-act="summary" title="Summary: score by quarter, leaders and scoring" aria-label="Summary"><i class="mdi mdi-text-box-outline" aria-hidden="true"></i><span class="sched-link-label">Summary</span></button>');
 	if (links?.box) out.push(`<a class="sched-link" href="${esc(links.box)}" title="Box score" aria-label="Box score"><i class="mdi mdi-table" aria-hidden="true"></i><span class="sched-link-label">Box</span></a>`);
 	if (links?.espn) out.push(`<a class="sched-link sched-link-espn" href="${esc(links.espn)}" target="_blank" rel="noopener noreferrer" title="This game on ESPN" aria-label="ESPN">ESPN</a>`);
 	return out.length ? `<span class="sched-links">${out.join('')}</span>` : '';

@@ -64,7 +64,7 @@ The schedule is one compact row a game — date, opponent with its all-time reco
 
 From 1100px the page splits into two columns: the answer and the season's story on the left, the schedule on the right as a panel the height of the screen with its list scrolling inside. Narrower, the blocks stack — answer and pinned game, the season's story, the schedule, the notes.
 
-Each played or live game on the schedule links to its own page (Box) and to ESPN's.
+Each played or live game on the schedule has three links: **Summary**, **Box** (its own page) and ESPN's. A click anywhere else on the row also opens the summary: a pop-up with the status, date, stadium, crowd and network, the score by quarter, each side's top passer, rusher and receiver, every scoring play, and the way on to the full box score. It is built from the same reduced box score as the game page, so opening it costs about 15KB.
 
 ## Game Pages
 

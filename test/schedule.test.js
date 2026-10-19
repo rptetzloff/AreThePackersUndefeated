@@ -100,3 +100,12 @@ test("each phase's chips sit in a group of their own, so a narrow row breaks bet
 	assert.deepEqual([...html.matchAll(/class="sched-chip-group" data-phase="([^"]+)"/g)].map((m) => m[1]), ['pre', 'regular', 'post'])
 	assert.equal((html.match(/<span /g) || []).length, (html.match(/<\/span>/g) || []).length)
 })
+
+test("a played game's row opens its summary: a button for the keyboard, and a Summary button before Box and ESPN", () => {
+	const html = scheduleRowHtml(row({ state: 'win', text: 'W 31-7', clickable: true, title: 'Summary', links: { summary: true, box: '/game/401872990', espn: 'https://www.espn.com/nfl/game/_/gameId/401872990' } }))
+	assert.match(html, /class="sched-row sched-win sched-click" data-key="1" role="button" tabindex="0" title="Summary"/)
+	const acts = [...html.matchAll(/class="sched-link(?: sched-link-espn)?"(?: data-act="(\w+)")?(?: href="([^"]+)")?/g)].map((m) => m[1] || m[2])
+	assert.deepEqual(acts, ['summary', '/game/401872990', 'https://www.espn.com/nfl/game/_/gameId/401872990'])
+	// A game to come is not a button.
+	assert.doesNotMatch(scheduleRowHtml(row()), /role="button"|sched-click/)
+})
