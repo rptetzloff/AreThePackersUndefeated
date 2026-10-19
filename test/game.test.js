@@ -86,7 +86,7 @@ function liveBox() {
 test('a game in progress carries down and distance, who has the ball, and the last play', () => {
 	const live = liveBox()
 	assert.equal(live.live, true)
-	assert.deepEqual(live.situation, { yardLine: 66, down: 2, distance: 7, downDistance: '2nd & 7 at CHI 34', possession: 'home', lastPlay: 'J.Love pass short left to C.Watson for 9 yards' })
+	assert.deepEqual(live.situation, { yardLine: 66, down: 2, distance: 7, downDistance: '2nd & 7 at CHI 34', possession: 'home', lastPlay: 'J.Love pass short left to C.Watson for 9 yards', timeouts: null })
 	const html = situationHtml(live)
 	assert.match(html, /Packers ball · 2nd &amp; 7 at CHI 34/)
 	assert.match(html, /C\.Watson for 9 yards/)

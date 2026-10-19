@@ -2640,3 +2640,73 @@ th.sorted-desc::after {
     scrollbar-width: thin;
     scrollbar-color: #ffb612 #203731;
 }
+
+/* The strip over the field: score, timeouts left, and who has the ball. */
+.field-bug {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.45rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.bug-team {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+/* The visitors read from the right edge in, mirroring the home side. */
+.bug-away {
+    flex-direction: row-reverse;
+}
+
+.bug-abbr {
+    font-weight: 800;
+    letter-spacing: 0.03em;
+}
+
+.bug-ours .bug-abbr {
+    color: #ffb612;
+}
+
+.bug-score {
+    font-size: 1.35rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.bug-ball,
+.game-ball {
+    color: #c8743c;
+    font-size: 1.05rem;
+}
+
+.bug-status {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #ff6b6b;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.bug-timeouts {
+    display: inline-flex;
+    gap: 3px;
+}
+
+.bug-to {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 182, 18, 0.6);
+}
+
+.bug-to-left {
+    background: #ffb612;
+    border-color: #ffb612;
+}
