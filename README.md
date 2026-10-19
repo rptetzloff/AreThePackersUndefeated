@@ -82,7 +82,7 @@ Two limits, both said on the page: nflverse has no player stats before 1999, so 
 
 The server boils ESPN's game summary (about 600KB) down to about 15KB (`lib/espn-box.js`) and serves it at `/api/boxscore/<id>`; the page draws it (`game-core.js`). The page's title and link preview carry the score.
 
-Every game from 1999 on has a page. This season's ids come from ESPN's schedule; a past season's from the games CSV, whose `espn_id` column `update-data.js` takes from nflverse's games.csv, which has one for every Packers game it lists. Past games' pages also show the day as nflverse recorded it (roof, surface, temperature, wind, referee) and its date and stadium where ESPN's are missing or wrong. ESPN's older records are patchy game by game: a section it has only part of (scoring plays that do not add up to the final score, a handful of drives) is left out, and the page says what ESPN's record lacks. Before 1999 there is no box score, and no Box link.
+Every game from 1999 on has a page. This season's ids come from ESPN's schedule; a past season's from the games CSV, whose `espn_id` column `update-data.js` takes from nflverse's games.csv, which has one for every Packers game it lists. Past games' pages also show the day as nflverse recorded it (roof, surface, temperature, wind, referee) and its date, stadium and final score where ESPN's are missing or wrong (ESPN has one 2001 game as 0–0). ESPN's older records are patchy game by game: a section it has only part of (scoring plays that do not add up to the final score, a handful of drives) is filled from nflverse's play-by-play (CC BY 4.0), and the page says which sections came from there. `update-data.js` builds them with `lib/game-details.js` into `data/packers_game_details.json`, one game per line keyed by ESPN id, fetching only seasons with a past game it lacks; a game whose play-by-play does not add up to its final score is left out (one, Green Bay at Jacksonville in 2001), and its page keeps ESPN's record and says what that lacks. Before 1999 there is no box score, and no Box link.
 
 Every page has a light and a dark theme. A button in the footer steps through System (follow the device), Light and Dark, and a choice is remembered; it is applied before the page paints, so a light page never flashes green. Dark is the site as it always was. The field tracker, the history chart and the champions panel keep their colours in both.
 
@@ -169,6 +169,7 @@ lib/seasons.js       # per-season record from CSV + live ESPN feed
 lib/espn-target.js   # allowlist of ESPN endpoints the proxy may fetch
 lib/espn-proxy.js    # cache in front of ESPN, lifetime chosen per response
 lib/espn-box.js      # a game's box score, reduced from ESPN's summary
+lib/game-details.js  # a past game's quarters, scoring and drives from nflverse pbp
 lib/records.js       # records/superlatives data + meta for /records routes
 lib/h2h.js           # head-to-head data + meta for /vs routes
 records-core.js      # shared superlative computation (browser + node)

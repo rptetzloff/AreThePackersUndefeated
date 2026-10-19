@@ -22,7 +22,7 @@ import { CATEGORIES, seasonTables, seasonsOf, leaders, playerSummary, gameLog, p
 import { esc, parseGames, poolCurrentSeason, seasonBeingPlayed } from './records-core.js';
 import { espnTarget } from './lib/espn-target.js';
 import { createEspnCache, browserMaxAge } from './lib/espn-proxy.js';
-import { espnBoxscore, withGameDay } from './lib/espn-box.js';
+import { espnBoxscore, withGameDay, withDetails } from './lib/espn-box.js';
 
 // The games CSV's rows by ESPN id, for each past game's game-day details.
 const gameByEspnId = new Map(allGames.filter((g) => g.espnId).map((g) => [g.espnId, g]));
@@ -30,6 +30,11 @@ import { staticCacheControl } from './lib/static-cache.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
+
+// Each past game's quarters, scoring plays and drives from nflverse's
+// play-by-play, for the sections ESPN's older records lack (lib/game-details.js).
+const gameDetailsById = JSON.parse(readFileSync(join(ROOT, 'data', 'packers_game_details.json'), 'utf8'));
+
 const PORT = process.env.PORT || 3000;
 
 // Stamp a short content hash onto local asset refs so a new deploy busts the
@@ -427,7 +432,10 @@ async function espnBox(eventId) {
     try { scoreboard = JSON.parse(sb.body).events?.find((e) => String(e.id) === String(eventId))?.competitions?.[0] || null; } catch { /* not on it */ }
   }
   let box = null;
-  try { box = withGameDay(espnBoxscore(summary, { scoreboard }), gameByEspnId.get(String(eventId))); } catch { /* not a game */ }
+  try {
+    const id = String(eventId);
+    box = withDetails(withGameDay(espnBoxscore(summary, { scoreboard }), gameByEspnId.get(id)), gameDetailsById[id]);
+  } catch { /* not a game */ }
   if (boxMemo.size > 100) boxMemo.clear();
   boxMemo.set(eventId, { key, box });
   return box;

@@ -88,6 +88,17 @@ export function missingNote(box) {
 	return `<p class="game-missing">ESPN's record of this game does not have ${list}.</p>`;
 }
 
+/** Which sections came from nflverse's play-by-play, where ESPN's record
+ *  lacked them, as a sentence crediting it (CC BY 4.0 asks for that), or ''. */
+export function filledNote(box) {
+	const names = { quarters: 'the score by quarter', scoring: 'the scoring plays', drives: 'the drives' };
+	const parts = (box.filled || []).map((p) => names[p]).filter(Boolean);
+	if (!parts.length) return '';
+	const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
+	const cap = list[0].toUpperCase() + list.slice(1);
+	return `<p class="game-missing">${cap} from <a href="https://github.com/nflverse/nflverse-data" target="_blank" rel="noopener noreferrer">nflverse</a> play-by-play (CC BY 4.0), where ESPN's record of this game lacks ${parts.length === 1 ? 'it' : 'them'}.</p>`;
+}
+
 /** Down and distance, who has the ball and the last play, for a game in
  *  progress. Empty otherwise. */
 export function situationHtml(box) {
@@ -203,6 +214,7 @@ export function gameSummaryHtml(box) {
 		+ (day ? `<div class="game-meta game-day">${day}</div>` : '')
 		+ (box.drive ? fieldTrackerHtml(box) : situationHtml(box))
 		+ missingNote(box)
+		+ filledNote(box)
 		+ (has(box, 'quarters') ? lineScoreTable(box) : '')
 		+ (leaders ? `<div class="summary-leaders-wrap">${leaders}</div>` : '')
 		+ (scoring ? `<h3 class="game-section-title">Scoring</h3>${scoring}` : '')
@@ -275,6 +287,7 @@ export function gamePageHtml(box, selected = null) {
 		// A finished game's section that ESPN has only part of is left out,
 		// with a line saying so, rather than drawn as if it were the game.
 		+ missingNote(box)
+		+ filledNote(box)
 		+ (has(box, 'quarters') ? lineScoreHtml(box) : '')
 		+ (has(box, 'scoring') ? scoringHtml(box) : '')
 		+ teamStatsHtml(box)

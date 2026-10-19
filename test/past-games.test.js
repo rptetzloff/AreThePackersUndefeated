@@ -62,6 +62,21 @@ test("the CSV's day: its date wins for a finished game, its stadium fills ESPN's
 	assert.equal(withGameDay(final, undefined), final)
 })
 
+test("the CSV's final score wins, and the sections are checked against it", () => {
+	// ESPN's Green Bay at Jacksonville, 3 December 2001 (28-21) says 0-0, so
+	// its empty scoring list passed for a scoreless game.
+	const espn = { final: true, teamSide: 'away', away: team('0', ['0', '7', '14', '7']), home: team('0', ['3', '10', '8', '0']), scoring: [], drives: Array(39).fill({}) }
+	espn.coverage = coverageOf(espn)
+	assert.equal(espn.coverage.scoring, true)
+	const merged = withGameDay(espn, { date: '2001-12-03', scoreFor: '28', scoreAgainst: '21' })
+	assert.deepEqual([merged.away.score, merged.home.score, merged.away.winner, merged.home.winner], ['28', '21', true, false])
+	assert.deepEqual(merged.coverage, { quarters: true, scoring: false, drives: true })
+	// A score that agrees, or a row without one, leaves ESPN's as it was.
+	const whole = { ...espn, away: team('28'), home: team('21'), coverage: { quarters: true, scoring: true, drives: true } }
+	assert.equal(withGameDay(whole, { scoreFor: '28', scoreAgainst: '21' }).coverage, whole.coverage)
+	assert.equal(withGameDay(espn, { date: '2001-12-03' }).coverage, espn.coverage)
+})
+
 test('the game-day line leaves out what nflverse left blank', () => {
 	assert.equal(gameDayLine({ gameDay: { roof: 'dome', surface: 'fieldturf', temp: '', wind: '', referee: '' } }), 'Dome · Fieldturf')
 	assert.equal(gameDayLine({ gameDay: null }), '')

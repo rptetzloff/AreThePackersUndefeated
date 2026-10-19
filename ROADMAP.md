@@ -338,7 +338,14 @@ seasons that nflverse credits to no one (a 42-yard completion in 2001, a sack
 in 2003), which the Stats page had summed into a nameless player in those
 seasons' tables; they are skipped now, before that page was released.
 
-Still to come: the box score gaps from pbp.
+~~Still to come: the box score gaps from pbp~~ — done: a past game's
+missing quarters, scoring plays and drives come from nflverse's play-by-play,
+a section only where ESPN's is missing, and the page says so. 469 of the 470
+past games since 1999 add up to their final scores, quarter by quarter and
+play by play; the one that does not (Green Bay at Jacksonville, 3 December
+2001, whose running scores put Jacksonville's touchdowns on Green Bay's side)
+is left out and keeps ESPN's record. Building it found that `server.js` could
+crash at startup with no test failing, so a test now starts it.
 
 ### ~~The weekly data update has failed since 15 September 2026~~
 update-data.yml committed to main, and main now requires a pull request and
