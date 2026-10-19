@@ -1874,6 +1874,68 @@ details:not([open]) > .collapsible-summary::before {
     flex: 1;
 }
 
+/* Stadiums page (stadiums.html). */
+.stadiums-heading {
+    color: var(--accent-text);
+    font-size: 1.15rem;
+    margin: 1.5rem 0 0.75rem;
+    text-align: left;
+}
+
+/* Lambeau's card is facts, not a ranking: no gold first row. */
+.stadiums-facts .record-entry-top .record-entry-main {
+    color: inherit;
+}
+
+/* "W 24–17", ".667" and "wind 12 mph" wrap as one piece each. */
+.stadiums-score,
+.stadiums-pct {
+    white-space: nowrap;
+}
+
+.stadiums-pct,
+.stadiums-note {
+    color: rgb(var(--fg-rgb) / 0.55);
+    font-size: 0.8rem;
+}
+
+.stadiums-conditions td:first-child,
+.stadiums-conditions th:first-child {
+    text-align: left;
+}
+
+/* The condition's definition under its name, not beside it. */
+.stadiums-conditions .stadiums-note {
+    display: block;
+}
+
+/* On a phone, each win % under its record: three records and three
+   percentages side by side are wider than the screen. */
+@media (max-width: 620px) {
+    .stadiums-conditions .stadiums-pct {
+        display: block;
+    }
+
+    /* The road stadiums' and referees' Win % says what the record beside it
+       does, and a long stadium name needs the room. */
+    .stadiums-col-pct {
+        display: none;
+    }
+
+    #stadiums-conditions .h2h-table :is(th, td),
+    #stadiums-road .h2h-table :is(th, td),
+    #stadiums-referees .h2h-table :is(th, td) {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    #stadiums-road .h2h-table th,
+    #stadiums-referees .h2h-table th {
+        font-size: 0.72rem;
+        letter-spacing: 0;
+    }
+}
+
 /* The ties card lists every tie (39 and counting) — scroll it instead of
    letting it stretch the whole grid row. Scrollbar matches .schedule-grid
    (shared ::-webkit-scrollbar rules above). */
