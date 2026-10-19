@@ -769,6 +769,9 @@ details:not([open]) > .collapsible-summary::before {
 .sched-next .sched-out { color: #ffb612; }
 .sched-upcoming .sched-out { color: rgba(255, 255, 255, 0.85); font-weight: 600; }
 .sched-postponed { opacity: 0.6; }
+.sched-click { cursor: pointer; }
+.sched-click:hover,
+.sched-click:focus-visible { background: rgba(255, 182, 18, 0.1); outline: none; }
 
 @media (max-width: 480px) {
     .sched-row {
@@ -2379,4 +2382,115 @@ th.sorted-desc::after {
     .game-sp-type {
         display: none;
     }
+}
+
+/* --- A game's summary pop-up, from a schedule row (game-core.js) --- */
+
+.summary-dialog {
+    max-width: 560px;
+}
+
+.summary-body {
+    padding: 1rem 1.25rem 1.25rem;
+    overflow-y: auto;
+    text-align: center;
+}
+
+.summary-body .game-situation {
+    margin-bottom: 0.75rem;
+}
+
+.summary-leaders-wrap {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+    margin: 0.25rem 0 1rem;
+    text-align: left;
+}
+
+.summary-leaders {
+    padding: 0.5rem 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
+
+.summary-leaders-ours {
+    border-color: rgba(255, 182, 18, 0.4);
+    background: rgba(255, 182, 18, 0.06);
+}
+
+.summary-leaders-team {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #ffb612;
+    margin-bottom: 0.25rem;
+}
+
+.summary-leader {
+    display: grid;
+    grid-template-columns: 4.6rem minmax(0, 1fr);
+    column-gap: 0.4rem;
+    padding: 0.15rem 0;
+    font-size: 0.85rem;
+}
+
+.summary-leader-cat {
+    grid-row: span 2;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+}
+
+.summary-leader-name {
+    font-weight: 600;
+}
+
+.summary-leader-line {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.summary-body .game-section-title {
+    text-align: left;
+    margin-top: 0.5rem;
+}
+
+.summary-body .game-score-play {
+    text-align: left;
+}
+
+.summary-links {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.summary-box-link,
+.summary-espn-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.summary-box-link {
+    background: #ffb612;
+    color: #203731;
+}
+
+.summary-espn-link {
+    border: 1.5px solid rgba(255, 182, 18, 0.5);
+    color: #ffb612;
+}
+
+.summary-box-link:hover,
+.summary-espn-link:hover {
+    filter: brightness(1.1);
 }

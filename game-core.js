@@ -70,8 +70,9 @@ export function situationHtml(box) {
 	return lines.length ? `<div class="game-situation">${lines.join('')}</div>` : '';
 }
 
-/** The score by quarter, with OT columns only when there was overtime. */
-export function lineScoreHtml(box) {
+/** The score by quarter, with OT columns only when there was overtime: the
+ *  table alone, for the page's section and the schedule's summary. */
+function lineScoreTable(box) {
 	const { away, home } = box;
 	const n = Math.max(4, away.quarters.length, home.quarters.length);
 	if (!away.quarters.length && !home.quarters.length) return '';
@@ -79,11 +80,21 @@ export function lineScoreHtml(box) {
 	const row = (t, s) => `<tr${box.teamSide === s ? ' class="game-row-ours"' : ''}><th scope="row">${esc(t.abbr)}</th>`
 		+ Array.from({ length: n }, (_, i) => `<td>${esc(t.quarters[i] ?? '')}</td>`).join('')
 		+ `<td class="game-total">${esc(t.score)}</td></tr>`;
-	return section('Score by Quarter', `<div class="game-table-wrap"><table class="game-table game-linescore"><thead><tr><th></th>${head}<th>T</th></tr></thead><tbody>${row(away, 'away')}${row(home, 'home')}</tbody></table></div>`);
+	return `<div class="game-table-wrap"><table class="game-table game-linescore"><thead><tr><th></th>${head}<th>T</th></tr></thead><tbody>${row(away, 'away')}${row(home, 'home')}</tbody></table></div>`;
+}
+
+export function lineScoreHtml(box) {
+	const table = lineScoreTable(box);
+	return table ? section('Score by Quarter', table) : '';
 }
 
 /** Every score in order, under its quarter, with the running score. */
 export function scoringHtml(box) {
+	const list = scoringList(box);
+	return list ? section('Scoring', list) : '';
+}
+
+function scoringList(box) {
 	if (!box.scoring.length) return '';
 	let q = null;
 	const out = [];
@@ -100,7 +111,69 @@ export function scoringHtml(box) {
 			+ `<span class="game-sp-score">${esc(p.away)}–${esc(p.home)}</span>`
 			+ '</div>');
 	}
-	return section('Scoring', out.join(''));
+	return out.join('');
+}
+
+// The leaders a summary names: each side's top passer, rusher and receiver,
+// by yards. Football's counterpart to a baseball summary's winning and
+// losing pitchers.
+const LEADER_CATS = [['passing', 'Passing'], ['rushing', 'Rushing'], ['receiving', 'Receiving']];
+
+/** One side's leaders as [{ title, name, line }], where line is the
+ *  category's first few stats as ESPN labels them ("25/31, 367 YDS, 2 TD"). */
+export function leadersOf(box, side) {
+	const out = [];
+	for (const [key, title] of LEADER_CATS) {
+		const c = box.players[side].find((p) => p.key === key);
+		const yds = c?.labels.indexOf('YDS') ?? -1;
+		if (!c?.rows.length || yds < 0) continue;
+		const top = c.rows.reduce((a, b) => (Number(b.stats[yds]) > Number(a.stats[yds]) ? b : a));
+		const pick = (label) => {
+			const i = c.labels.indexOf(label);
+			return i < 0 ? null : top.stats[i];
+		};
+		const parts = key === 'passing'
+			? [pick('C/ATT'), `${pick('YDS')} YDS`, `${pick('TD')} TD`, Number(pick('INT')) ? `${pick('INT')} INT` : null]
+			: key === 'rushing'
+				? [`${pick('CAR')} CAR`, `${pick('YDS')} YDS`, Number(pick('TD')) ? `${pick('TD')} TD` : null]
+				: [`${pick('REC')} REC`, `${pick('YDS')} YDS`, Number(pick('TD')) ? `${pick('TD')} TD` : null];
+		out.push({ title, name: top.name, line: parts.filter((p) => p != null && !/^(null|undefined) /.test(p)).join(', ') });
+	}
+	return out;
+}
+
+/**
+ * The schedule's pop-up summary of a game: its status, where and when, the
+ * crowd and network, the score by quarter, each side's leaders, every
+ * scoring play, and the way to the full box score. What the Brewers site's
+ * line-score pop-up is, for football.
+ */
+export function gameSummaryHtml(box) {
+	const meta = [
+		esc(longDate(box.date)),
+		box.venue && esc(box.city ? `${box.venue}, ${box.city}` : box.venue),
+		box.attendance && `Att: ${box.attendance.toLocaleString('en-US')}`,
+		box.broadcast && esc(box.broadcast),
+	].filter(Boolean).join(' · ');
+	const status = box.live
+		? `<div class="game-status-line game-status-live"><span class="live-indicator-small"></span>${esc(box.status)}</div>`
+		: `<div class="game-status-line">${esc(box.status)}</div>`;
+	const order = box.teamSide === 'away' ? ['away', 'home'] : ['home', 'away'];
+	const leaders = order.map((s) => {
+		const ls = leadersOf(box, s);
+		if (!ls.length) return '';
+		return `<div class="summary-leaders${s === box.teamSide ? ' summary-leaders-ours' : ''}"><div class="summary-leaders-team">${esc(box[s].short)}</div>`
+			+ ls.map((l) => `<div class="summary-leader"><span class="summary-leader-cat">${esc(l.title)}</span><span class="summary-leader-name">${esc(l.name)}</span><span class="summary-leader-line">${esc(l.line)}</span></div>`).join('')
+			+ '</div>';
+	}).join('');
+	const scoring = scoringList(box);
+	return `${status}<div class="game-meta">${meta}</div>`
+		+ situationHtml(box)
+		+ lineScoreTable(box)
+		+ (leaders ? `<div class="summary-leaders-wrap">${leaders}</div>` : '')
+		+ (scoring ? `<h3 class="game-section-title">Scoring</h3>${scoring}` : '')
+		+ `<div class="summary-links"><a class="summary-box-link" href="/game/${esc(box.id)}">Full Box Score <i class="mdi mdi-arrow-right" aria-hidden="true"></i></a>`
+		+ `<a class="summary-espn-link" href="https://www.espn.com/nfl/game/_/gameId/${esc(box.id)}" target="_blank" rel="noopener noreferrer">ESPN <i class="mdi mdi-open-in-new" aria-hidden="true"></i></a></div>`;
 }
 
 const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][n] || 'th'}`;
