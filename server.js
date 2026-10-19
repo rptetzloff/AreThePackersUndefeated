@@ -10,14 +10,17 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, normalize, extname } from 'node:path';
 import { renderPng, renderRecordsPng, renderH2hPng, renderHistoryPng, renderCoachesPng } from './lib/cards.js';
 import { originOf } from './lib/origin.js';
-import { getSeasonState, defaultSeason } from './lib/seasons.js';
+import { getSeasonState, defaultSeason, allGames } from './lib/seasons.js';
 import { records, recordsMeta, isRecordSlug, seasonHistory, historyMeta } from './lib/records.js';
 import { coaches, coachesMeta } from './lib/coaches.js';
 import { h2h, h2hMeta, isOpponentSlug } from './lib/h2h.js';
 import { esc } from './records-core.js';
 import { espnTarget } from './lib/espn-target.js';
 import { createEspnCache, browserMaxAge } from './lib/espn-proxy.js';
-import { espnBoxscore } from './lib/espn-box.js';
+import { espnBoxscore, withGameDay } from './lib/espn-box.js';
+
+// The games CSV's rows by ESPN id, for each past game's game-day details.
+const gameByEspnId = new Map(allGames.filter((g) => g.espnId).map((g) => [g.espnId, g]));
 import { staticCacheControl } from './lib/static-cache.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -269,7 +272,7 @@ async function espnBox(eventId) {
     try { scoreboard = JSON.parse(sb.body).events?.find((e) => String(e.id) === String(eventId))?.competitions?.[0] || null; } catch { /* not on it */ }
   }
   let box = null;
-  try { box = espnBoxscore(summary, { scoreboard }); } catch { /* not a game */ }
+  try { box = withGameDay(espnBoxscore(summary, { scoreboard }), gameByEspnId.get(String(eventId))); } catch { /* not a game */ }
   if (boxMemo.size > 100) boxMemo.clear();
   boxMemo.set(eventId, { key, box });
   return box;

@@ -2864,3 +2864,16 @@ th.sorted-desc::after {
     background: var(--accent);
     border-color: var(--accent);
 }
+
+/* A past game's day as nflverse recorded it, under the date and place. */
+.game-day {
+    margin-top: -0.9rem;
+}
+
+/* What ESPN's record of a past game lacks, said where the sections would be. */
+.game-missing {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+    font-style: italic;
+    color: rgb(var(--fg-rgb) / 0.6);
+}

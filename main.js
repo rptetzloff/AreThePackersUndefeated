@@ -1,4 +1,4 @@
-        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml, esc } from './records-core.js';
+        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml, esc, seasonBeingPlayed } from './records-core.js';
 import { SITE } from './site.js';
 import { scheduleListHtml, monthChipsHtml } from './schedule-core.js';
 import { withScoreboard } from './scoreboard-core.js';
@@ -218,7 +218,14 @@ import { seasonVerdict } from './lib/season-state.js';
      }
  }
 
+ // A past season comes from the CSV. The season being played comes from
+ // ESPN even once its games are in the CSV, which would show it as finished;
+ // the CSV is only its fallback when ESPN fails (hasCsvSeason).
  usesCsvData(season) {
+  return this.hasCsvSeason(season) && season < seasonBeingPlayed();
+}
+
+ hasCsvSeason(season) {
   return season != null && season <= this.csvMaxSeason && this.csvBySeason[season] != null;
 }
 
@@ -255,7 +262,7 @@ async fetchPackersData(season) {
      const mergedData = { ...regularData, events: allEvents };
 
         			// If ESPN returns no events and we have CSV data, fall back to CSV
-     if (allEvents.length === 0 && season && this.usesCsvData(season)) {
+     if (allEvents.length === 0 && season && this.hasCsvSeason(season)) {
         this.processCsvSeasonData(season);
         return;
     }
@@ -271,7 +278,7 @@ async fetchPackersData(season) {
     }
 } catch (error) {
         			// If ESPN fetch fails and we have CSV data for this season, use it
- if (season && this.usesCsvData(season)) {
+ if (season && this.hasCsvSeason(season)) {
     this.processCsvSeasonData(season);
 } else {
     this.processScheduleData({ events: [] });
@@ -339,8 +346,18 @@ displayCsvSchedule(games, season) {
   const rows = sorted.map((g) => {
     const res = g.result === 'WIN' ? 'win' : g.result === 'LOSS' ? 'loss' : 'tie';
     const isSuperBowl = Boolean(g.championship && g.championship.trim());
+    // From 1999 a game carries ESPN's id: its row opens the summary and
+    // links to the box score page, as this season's do. Before 1999 there
+    // is no box score to link to.
+    const id = g.espnId;
     return {
-      key: `${g.date}-${g.Opponent}`, date: localDate(g.date),
+      key: id || `${g.date}-${g.Opponent}`, date: localDate(g.date),
+      clickable: Boolean(id), title: id ? 'Summary' : '',
+      links: id ? {
+        summary: true,
+        box: `/game/${encodeURIComponent(id)}`,
+        espn: `https://www.espn.com/nfl/game/_/gameId/${encodeURIComponent(id)}`,
+      } : null,
       // HOME, AWAY or NEUTRAL; a neutral site reads "vs", as the card did.
       home: g.location !== 'AWAY',
       opp: g.Opponent, state: res,

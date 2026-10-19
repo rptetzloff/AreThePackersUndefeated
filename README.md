@@ -72,7 +72,7 @@ Each played or live game on the schedule has three links: **Summary**, **Box** (
 
 The server boils ESPN's game summary (about 600KB) down to about 15KB (`lib/espn-box.js`) and serves it at `/api/boxscore/<id>`; the page draws it (`game-core.js`). The page's title and link preview carry the score.
 
-Only games ESPN has an id for get a page: this season's, from the schedule. Past seasons come from the CSV, which has no ESPN ids, so their rows have no Box link yet.
+Every game from 1999 on has a page. This season's ids come from ESPN's schedule; a past season's from the games CSV, whose `espn_id` column `update-data.js` takes from nflverse's games.csv, which has one for every Packers game it lists. Past games' pages also show the day as nflverse recorded it (roof, surface, temperature, wind, referee) and its date and stadium where ESPN's are missing or wrong. ESPN's older records are patchy game by game: a section it has only part of (scoring plays that do not add up to the final score, a handful of drives) is left out, and the page says what ESPN's record lacks. Before 1999 there is no box score, and no Box link.
 
 Every page has a light and a dark theme. A button in the footer steps through System (follow the device), Light and Dark, and a choice is remembered; it is applied before the page paints, so a light page never flashes green. Dark is the site as it always was. The field tracker, the history chart and the champions panel keep their colours in both.
 
