@@ -124,6 +124,21 @@ Rules the page follows:
 - A crowd of 0 is an empty stadium in 2020 only. ESPN also has 0 for five full games in 2012–13, which are left out as unrecorded.
 - Nothing before 1999 has weather, stadium or referee data in a source the site can use. The Ice Bowl (−13°F, 1967) is therefore not on the coldest list, and the page says so.
 
+## Splits
+
+`/splits` is the Packers' record since 1999, split five ways:
+- **When they play:** Sunday early, late afternoon and night, Monday night, Thursday, Saturday, Thanksgiving and Christmas. Kickoff times are Eastern, as nflverse records them.
+- **Close games, blowouts and the division:** overtime, games decided by 3 or fewer, one-score games, games decided by 21 or more, and division games against everyone else.
+- **The point spread:** favored or underdog, by less than 7 or by 7 or more, each with the straight-up record and the record against the closing line. Landing on the number is a push.
+- **Packers starting quarterbacks:** each starter's regular-season and playoff record, linked to his player page, which also shows his record as the starter.
+- **Opposing quarterbacks:** those faced three times or more, and the Packers' record against them.
+
+Records count the regular season and playoffs together, except the Packers starters'. It is in the footer nav after Stadiums; the JSON is at `/api/splits`. `splits-core.js` builds it on the server from the same rows as Stadiums.
+
+The day, kickoff, overtime, division, spread and both starting quarterbacks are columns of the games CSV, from nflverse's schedules (`lib/nflverse-games.js`). The spread is stored from the Packers' side, positive when they were favored; nflverse's own `spread_line` is the home team's.
+
+The starter is nflverse's, and it differs from the official record once: nflverse credits the 2018 finale at Detroit to DeShone Kizer, who played most of it after Aaron Rodgers left with a concussion in the first quarter. So Rodgers shows 147–74–1 against his official 147–75–1, and the page says why.
+
 ## Data Files
 
 `data/packers_games.csv` — game-by-game results for every Packers game from 1921 to the present, including opponent, score, location, and playoff/Super Bowl flags. Pre-1999 rows come from the FiveThirtyEight source; 1999–present rows are sourced from nflverse-data.
@@ -204,6 +219,7 @@ h2h-core.js          # shared head-to-head computation (browser + node)
 schedule-core.js     # the home page's compact schedule rows and chips
 game-core.js         # the game page's HTML from a box score
 stadiums-core.js     # the Stadiums page: Lambeau, weather, crowds, road stadiums, referees
+splits-core.js       # the Splits page: when, close games, the spread, starting quarterbacks
 fonts/               # Liberation Sans (SIL OFL 1.1), bundled for deterministic rendering
 render.yaml          # Render Blueprint
 ```

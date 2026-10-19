@@ -354,10 +354,13 @@ Ballparks~~ — done: `/stadiums`, with Lambeau, the weather boards, the
 record by conditions, every road stadium and referee, and ESPN's crowds,
 since 1999. Before 1999 has no weather in any source the site can use, so
 the Ice Bowl is missing until one turns up (a cited, hand-entered list of
-famous games was considered and set aside). Next: records by weekday and kickoff, in overtime,
-as an underdog, and by starting quarterback (columns of nflverse's games.csv
-not kept yet); and the draft since 1980 (draft_picks.csv: round, college, Pro
-Bowls, All-Pros, Hall of Fame).
+famous games was considered and set aside). ~~Records by weekday and
+kickoff, in overtime, as an underdog, and by starting quarterback~~ — done:
+`/splits`, from columns of nflverse's games.csv now kept in the games CSV,
+with each quarterback's record as the starter on his player page. nflverse's
+starter differs from the official record once (the 2018 finale at Detroit,
+credited to Kizer), and the page says so. Next: the draft since 1980
+(draft_picks.csv: round, college, Pro Bowls, All-Pros, Hall of Fame).
 
 ### ~~The weekly data update has failed since 15 September 2026~~
 update-data.yml committed to main, and main now requires a pull request and

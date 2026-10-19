@@ -66,6 +66,17 @@ export function parseGames(raw) {
 		temp: r.temp || '',
 		wind: r.wind || '',
 		referee: r.referee || '',
+		// When, overtime, division, the line and the quarterbacks (the Splits
+		// page; lib/nflverse-games.js says what each holds). Empty before 1999.
+		weekday: r.weekday || '',
+		kickoff: r.gametime || '',
+		overtime: r.overtime || '',
+		division: r.div_game || '',
+		spread: r.spread || '',
+		qbId: r.qb_id || '',
+		qb: r.qb || '',
+		oppQbId: r.opponent_qb_id || '',
+		oppQb: r.opponent_qb || '',
 	}));
 }
 

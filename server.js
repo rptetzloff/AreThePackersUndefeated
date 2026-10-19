@@ -22,6 +22,7 @@ import { birthDates, parseBirths } from './lib/player-births.js';
 import { parseCsv as parseNflverseCsv, mapNflverseRow, rowToCsv, GAMES_HEADER } from './lib/nflverse-games.js';
 import { attendanceOf, parseAttendance } from './lib/attendance.js';
 import { stadiumStats } from './stadiums-core.js';
+import { splitStats, starterRecord } from './splits-core.js';
 import { CATEGORIES, seasonTables, seasonsOf, leaders, playerSummary, gameLog, playerIndex, bornOn, PLAYER_ID } from './stats-core.js';
 import { esc, parseGames, poolCurrentSeason, seasonBeingPlayed } from './records-core.js';
 import { espnTarget } from './lib/espn-target.js';
@@ -87,6 +88,7 @@ const GAME_VERSIONED = loadShell('game.html', ['game.js', 'styles.css', 'theme.j
 const STATS_VERSIONED = loadShell('stats.html', ['stats.js', 'styles.css', 'theme.js']);
 const PLAYER_VERSIONED = loadShell('player.html', ['player.js', 'styles.css', 'theme.js']);
 const STADIUMS_VERSIONED = loadShell('stadiums.html', ['stadiums.js', 'styles.css', 'theme.js']);
+const SPLITS_VERSIONED = loadShell('splits.html', ['splits.js', 'styles.css', 'theme.js']);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -324,6 +326,15 @@ async function stadiumsNow() {
   return stadiumsMemo;
 }
 
+// The Splits page (splits-core.js), from the same rows as Stadiums: the CSV's,
+// with the season being played from nflverse's schedules.
+let splitsMemo = null; // { version, json }
+async function splitsNow() {
+  const { version, rows } = await currentGameDayRows();
+  if (splitsMemo?.version !== version) splitsMemo = { version, rows, json: JSON.stringify(splitStats(rows)) };
+  return splitsMemo;
+}
+
 // /api/born/<MM-DD>: the Packers born that day, for the On This Day card.
 async function serveBornApi(res, monthDay) {
   const d = await playerGamesNow();
@@ -356,7 +367,10 @@ async function servePlayerApi(res, url, id) {
   const asked = Number(url.searchParams.get('season'));
   const season = summary.seasons.includes(asked) ? asked : summary.seasons[0];
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
-  res.end(JSON.stringify({ ...summary, log: gameLog(d.rows, id, season) }));
+  // A quarterback's record as the Packers' starter (splits-core.js), from
+  // nflverse's schedules; null for everyone else.
+  const starts = starterRecord((await splitsNow()).rows, id);
+  res.end(JSON.stringify({ ...summary, starts, log: gameLog(d.rows, id, season) }));
 }
 
 async function servePlayerHtml(req, res, id) {
@@ -659,6 +673,19 @@ const server = http.createServer(async (req, res) => {
       const st = await stadiumsNow();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
       return res.end(st.json);
+    }
+    if (pathname === '/api/splits') {
+      const sp = await splitsNow();
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      return res.end(sp.json);
+    }
+    if (pathname === '/splits' || pathname === '/splits/' || pathname === '/splits.html') {
+      const origin = originOf(req);
+      return sendPage(res, SPLITS_VERSIONED, {
+        title: 'Packers Splits',
+        desc: 'The Packers by day and kickoff, in close games and overtime, as favorites and underdogs, and by starting quarterback, since 1999.',
+        img: origin + '/og/default.png', canonical: origin + '/splits',
+      });
     }
     if (pathname === '/stadiums' || pathname === '/stadiums/' || pathname === '/stadiums.html') {
       const origin = originOf(req);

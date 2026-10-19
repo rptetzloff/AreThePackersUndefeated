@@ -90,8 +90,9 @@ test('parseGames produces the neutral keys and none of the CSV ones', () => {
 	// or renaming one breaks every page, so it should take a deliberate edit
 	// here rather than a silent undefined at the call site.
 	assert.deepEqual(Object.keys(row).sort(), [
-		'Opponent', 'championship', 'date', 'espnId', 'location', 'playoff',
+		'Opponent', 'championship', 'date', 'division', 'espnId', 'kickoff', 'location',
+		'oppQb', 'oppQbId', 'overtime', 'playoff', 'qb', 'qbId',
 		'referee', 'regular_season', 'result', 'roof', 'scoreAgainst', 'scoreFor',
-		'season', 'stadium', 'surface', 'temp', 'wind',
+		'season', 'spread', 'stadium', 'surface', 'temp', 'weekday', 'wind',
 	])
 })
