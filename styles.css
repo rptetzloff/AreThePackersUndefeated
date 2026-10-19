@@ -671,6 +671,41 @@ details:not([open]) > .collapsible-summary::before {
     color: rgb(var(--fg-rgb) / 0.45);
 }
 
+/* Birthdays under the game, or alone on a day without one. */
+.otd-born {
+    margin-top: 0.6rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgb(var(--accent-rgb) / 0.2);
+    font-size: 0.85rem;
+    color: rgb(var(--fg-rgb) / 0.8);
+}
+
+.otd-header + .otd-born {
+    border-top: none;
+    padding-top: 0;
+}
+
+.otd-born .mdi {
+    color: var(--accent-text);
+}
+
+.otd-born a {
+    color: var(--fg);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px dotted rgb(var(--accent-rgb) / 0.5);
+    /* A name wraps between players, never inside one. */
+    white-space: nowrap;
+}
+
+.otd-born a:hover {
+    color: var(--accent-text);
+}
+
+.otd-born-year {
+    color: rgb(var(--fg-rgb) / 0.5);
+}
+
 @media (max-width: 620px) {
     .collapsible-section {
         width: 100%;
@@ -1225,7 +1260,9 @@ details:not([open]) > .collapsible-summary::before {
     justify-content: center;
     gap: 0.15rem;
     width: 100%;
-    max-width: 960px;
+    /* Twelve items on a desktop: 960px held eleven, and the Disclaimer link
+       pushed GitHub to a second row. */
+    max-width: 1100px;
 }
 
 .footer-nav-link {
@@ -1341,15 +1378,20 @@ details:not([open]) > .collapsible-summary::before {
 }
 
 @media (max-width: 640px) {
+    /* No gap between items: twelve of them, and the home page's row is
+       319px of the 328 a 360px phone has. */
     .footer-nav {
-        gap: 0.05rem;
+        gap: 0;
     }
 
     /* Tab-bar style: icon with a tiny label underneath, one row total. */
+    /* Side padding 0.05rem: with Stadiums, Splits and the Disclaimer link
+       the row needed 358px against 328 at 360px; "Legal" for Disclaimer
+       and this padding bring it back to one row. */
     .footer-nav-link {
         flex-direction: column;
         gap: 0.1rem;
-        padding: 0.25rem 0.1rem;
+        padding: 0.25rem 0.05rem;
         font-size: 0.55rem;
         line-height: 1;
     }
@@ -1837,6 +1879,188 @@ details:not([open]) > .collapsible-summary::before {
 .record-empty {
     color: rgb(var(--fg-rgb) / 0.7);
     flex: 1;
+}
+
+/* The Disclaimer link in the footer, and the Data & Licenses modal it
+   opens (license-modal.js). */
+.license-link {
+    background: none;
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.license-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgb(var(--shade-rgb) / 0.75);
+}
+
+/* display:flex above would defeat the hidden attribute's UA display:none. */
+.license-overlay[hidden] {
+    display: none;
+}
+
+.license-modal {
+    position: relative;
+    max-width: 34rem;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 1.5rem 1.75rem;
+    border-radius: 12px;
+    border: 1px solid rgb(var(--accent-rgb) / 0.35);
+    background: var(--raised-a);
+    text-align: left;
+    font-size: 0.88rem;
+    color: rgb(var(--fg-rgb) / 0.8);
+    line-height: 1.5;
+}
+
+.license-modal h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.1rem;
+    color: var(--accent-text);
+}
+
+.license-modal h3 {
+    margin: 1rem 0 0.3rem;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgb(var(--accent-text-rgb) / 0.85);
+}
+
+.license-modal p {
+    margin: 0.35rem 0;
+}
+
+.license-modal a {
+    color: var(--accent-text);
+}
+
+.license-close {
+    position: absolute;
+    top: 0.7rem;
+    right: 0.7rem;
+    width: 1.8rem;
+    height: 1.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid rgb(var(--fg-rgb) / 0.2);
+    background: none;
+    color: rgb(var(--fg-rgb) / 0.6);
+    cursor: pointer;
+}
+
+.license-close:hover {
+    color: var(--fg);
+    border-color: rgb(var(--fg-rgb) / 0.4);
+}
+
+/* The Splits page's games abroad, under the country table. */
+.splits-abroad {
+    list-style: none;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    font-size: 0.85rem;
+    color: rgb(var(--fg-rgb) / 0.75);
+}
+
+.splits-abroad li + li {
+    margin-top: 0.3rem;
+}
+
+.splits-abroad a {
+    color: var(--accent-text);
+}
+
+/* A quarterback's record as the starter, under his name on the player page. */
+.player-starts {
+    text-align: center;
+    color: rgb(var(--fg-rgb) / 0.75);
+    font-size: 0.9rem;
+    margin: -1.5rem 0 1.5rem;
+}
+
+.player-starts a {
+    color: var(--accent-text);
+}
+
+/* Stadiums page (stadiums.html), and the Splits page, which shares its
+   headings and tables. */
+.stadiums-heading {
+    color: var(--accent-text);
+    font-size: 1.15rem;
+    margin: 1.5rem 0 0.75rem;
+    text-align: left;
+}
+
+/* Lambeau's card is facts, not a ranking: no gold first row. */
+.stadiums-facts .record-entry-top .record-entry-main {
+    color: inherit;
+}
+
+/* "W 24–17", ".667" and "wind 12 mph" wrap as one piece each. */
+.stadiums-score,
+.stadiums-pct {
+    white-space: nowrap;
+}
+
+.stadiums-pct,
+.stadiums-note {
+    color: rgb(var(--fg-rgb) / 0.55);
+    font-size: 0.8rem;
+}
+
+.stadiums-conditions td:first-child,
+.stadiums-conditions th:first-child {
+    text-align: left;
+}
+
+/* The condition's definition, or the quarterback's teams, under the name,
+   not beside it. */
+.stadiums-conditions .stadiums-note,
+.compact-tables td .stadiums-note {
+    display: block;
+}
+
+/* On a phone, each win % under its record: three records and three
+   percentages side by side are wider than the screen. */
+@media (max-width: 620px) {
+    .stadiums-conditions .stadiums-pct {
+        display: block;
+    }
+
+    /* The road stadiums' and referees' Win % says what the record beside it
+       does, and a long stadium name needs the room. */
+    .stadiums-col-pct {
+        display: none;
+    }
+
+    /* The Stadiums and Splits tables. */
+    .compact-tables .h2h-table :is(th, td) {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    .compact-tables .h2h-table th {
+        font-size: 0.72rem;
+        letter-spacing: 0;
+        /* "Against the spread" over two lines rather than off the screen. */
+        white-space: normal;
+    }
+
+    /* Years say least on a phone: the player page has them. */
+    .compact-col-years {
+        display: none;
+    }
 }
 
 /* The ties card lists every tie (39 and counting) — scroll it instead of

@@ -32,6 +32,8 @@ The box is hidden automatically when there are no completed games to analyze (e.
 
 Near the top of the page, below the streak box, the app surfaces a random Packers game played on (or within a few days of) today's calendar date, pulled from the full historical record.
 
+Under it, the Packers born that day (the exact day; the games look three days either side): the three with the most Packers seasons, linked to their player pages, and a count of the rest. On a day with no game near it the birthdays are the card, and with neither it stays hidden. They come from `/api/born/<MM-DD>`. Birth dates are nflverse's `players.csv` (CC BY 4.0), for every player since 1999 (645, a birthday on 306 days of the year): `update-data.js` writes them to `data/packers_player_births.csv`, and the server adds anyone the file lacks, a player new in the season being played, from nflverse at most once a day. Before 1999 nflverse cannot say who played for Green Bay, so the birthdays start there, as the stats do.
+
 Both the streak box and the On This Day card are independently collapsible — click the small toggle label above each one to hide or show it.
 
 ### Testing with a specific date
@@ -102,11 +104,49 @@ The chart is built by `history-chart.js`, a pure SVG-string module shared by the
 
 Coach photos come from Wikimedia Commons (public domain or Creative Commons; the `image_page` column links each photo's source/license page, and clicking a photo opens it). Coaches without a free image on Commons get a placeholder.
 
+## Stadiums
+
+`/stadiums` is the Packers' game days since 1999, like the Brewers site's Ballparks page:
+- **Lambeau Field:** the record there, regular season and playoffs, the average and biggest crowd, and the coldest, hottest and windiest game.
+- **Game-day boards:** the coldest, windiest and hottest games, and the biggest and smallest crowds, each linked to its box score.
+- **Record by conditions:** below freezing, cold, mild and warm, windy, indoors, on grass and on artificial turf, split into all games, Lambeau and road.
+- **Road stadiums:** the record in each of the 74, sortable.
+- **Referees:** the record with each referee, sortable.
+
+It is in the footer nav after Records; the JSON is at `/api/stadiums`. `stadiums-core.js` builds it on the server.
+
+Where the data comes from:
+- **Stadium, roof, surface, kickoff temperature, wind and referee:** the games CSV's game-day columns, from nflverse. For the season being played, the server reads nflverse's schedules at runtime every six hours, through `lib/nflverse-games.js`, the same mapping `update-data.js` writes the CSV with. ESPN's schedule, which counts that season everywhere else, has none of these.
+- **Crowds:** ESPN's. `update-data.js` writes past games' crowds to `data/packers_attendance.csv`, fetching only games the file lacks. The server reads the season being played from ESPN's summaries through its cache.
+
+Rules the page follows:
+- A dome or closed roof has no temperature or wind.
+- A crowd of 0 is an empty stadium in 2020 only. ESPN also has 0 for five full games in 2012–13, which are left out as unrecorded.
+- Nothing before 1999 has weather, stadium or referee data in a source the site can use. The Ice Bowl (−13°F, 1967) is therefore not on the coldest list, and the page says so.
+
+## Splits
+
+`/splits` is the Packers' record since 1999, split six ways:
+- **When they play:** Sunday early, late afternoon and night, Monday night, Thursday, Saturday, Thanksgiving and Christmas. Kickoff times are Eastern, as nflverse records them.
+- **By country:** the record in each country played in, with every game abroad listed and linked to its box score. Since 1999 there are two: London (2022) and São Paulo (2024). The country comes from nflverse's stadium code, which begins with the city (`LON02`, `SAO00`); `FRA` is Frankfurt, and Paris is `PAR`.
+- **Close games, blowouts and the division:** overtime, games decided by 3 or fewer, one-score games, games decided by 21 or more, and division games against everyone else.
+- **The point spread:** favored or underdog, by less than 7 or by 7 or more, each with the straight-up record and the record against the closing line. Landing on the number is a push.
+- **Packers starting quarterbacks:** each starter's regular-season and playoff record, linked to his player page, which also shows his record as the starter.
+- **Opposing quarterbacks:** those faced three times or more, and the Packers' record against them.
+
+Records count the regular season and playoffs together, except the Packers starters'. It is in the footer nav after Stadiums; the JSON is at `/api/splits`. `splits-core.js` builds it on the server from the same rows as Stadiums.
+
+The day, kickoff, overtime, division, spread and both starting quarterbacks are columns of the games CSV, from nflverse's schedules (`lib/nflverse-games.js`). The spread is stored from the Packers' side, positive when they were favored; nflverse's own `spread_line` is the home team's.
+
+The starter is nflverse's, and it differs from the official record once: nflverse credits the 2018 finale at Detroit to DeShone Kizer, who played most of it after Aaron Rodgers left with a concussion in the first quarter. So Rodgers shows 147–74–1 against his official 147–75–1, and the page says why.
+
 ## Data Files
 
 `data/packers_games.csv` — game-by-game results for every Packers game from 1921 to the present, including opponent, score, location, and playoff/Super Bowl flags. Pre-1999 rows come from the FiveThirtyEight source; 1999–present rows are sourced from nflverse-data.
 
 `data/packers_season_records.csv` — one row per season with regular season and postseason win/loss/tie totals. Generated automatically by `update-data.js`.
+
+`data/packers_attendance.csv` — each past game's crowd since 1999, by ESPN id, from ESPN's game summary. Written by `update-data.js`, which fetches only the games it lacks.
 
 ## Updating Data
 
@@ -170,12 +210,17 @@ lib/espn-target.js   # allowlist of ESPN endpoints the proxy may fetch
 lib/espn-proxy.js    # cache in front of ESPN, lifetime chosen per response
 lib/espn-box.js      # a game's box score, reduced from ESPN's summary
 lib/game-details.js  # a past game's quarters, scoring and drives from nflverse pbp
+lib/player-births.js # Packers birth dates from nflverse players.csv
+lib/nflverse-games.js # nflverse schedules as games CSV rows (update-data + server)
+lib/attendance.js    # game crowds from ESPN summaries
 lib/records.js       # records/superlatives data + meta for /records routes
 lib/h2h.js           # head-to-head data + meta for /vs routes
 records-core.js      # shared superlative computation (browser + node)
 h2h-core.js          # shared head-to-head computation (browser + node)
 schedule-core.js     # the home page's compact schedule rows and chips
 game-core.js         # the game page's HTML from a box score
+stadiums-core.js     # the Stadiums page: Lambeau, weather, crowds, road stadiums, referees
+splits-core.js       # the Splits page: when, close games, the spread, starting quarterbacks
 fonts/               # Liberation Sans (SIL OFL 1.1), bundled for deterministic rendering
 render.yaml          # Render Blueprint
 ```
@@ -235,15 +280,19 @@ Multiple photos per season are supported — they will all be displayed.
 
 **Current season (live)** — for the most recent NFL season, the app fetches live schedule and score data from the ESPN public API at runtime, through the server's `/api/espn/` proxy rather than from the browser. The proxy fetches only the three endpoints the pages use, shares one ESPN call between concurrent viewers, keeps each response as long as it can still change (15 seconds for a game in progress's summary, an hour for a schedule with no game near, a day once final), and serves the last good answer if ESPN is briefly down. This covers preseason, regular season, and playoffs. When a game is in progress, the page polls every 30 seconds and shows the live score, game clock, down-and-distance, and last play. No API key is required; the ESPN endpoints used are public and unauthenticated.
 
+**Crowds** — each game's attendance is ESPN's, from its game summary (`data/packers_attendance.csv`, and the season being played at runtime).
+
 The app determines which data source to use automatically: seasons present in the CSV use static data; the current season (and any season ESPN returns that is newer than the CSV) uses the live ESPN feed. If the ESPN fetch fails, the app falls back to the CSV.
 
 ## Licenses
+
+Every page's footer has a **Disclaimer** link ("Legal" on a phone) that opens a Data & Licenses modal (`license-modal.js`, ported from the Brewers site). It says the site is an independent fan site, names each data source with the notice its license asks for (nflverse's CC BY 4.0 with the changes made, FiveThirtyEight's MIT License, ESPN, Wikimedia Commons), says the point spreads are not betting advice, and links to GitHub issues for corrections. `test/disclaimer.test.js` holds every page to loading it and the modal to naming every source.
 
 Application source code is released under the MIT License. See [LICENSE](LICENSE).
 
 The FiveThirtyEight NFL ELO game data in `data/packers_games.csv` (seasons 1921–1998) is redistributed under the MIT License granted by FiveThirtyEight. See [LICENSE-DATA](LICENSE-DATA).
 
-The nflverse-data content in `data/packers_games.csv` (seasons 1999–present) is used under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/). Credit: [nflverse contributors](https://github.com/nflverse/nflverse-data).
+The nflverse-data content in `data/packers_games.csv` (seasons 1999–present), `data/packers_player_games.csv`, `data/packers_game_details.json` and `data/packers_player_births.csv` is used under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/). Credit: [nflverse contributors](https://github.com/nflverse/nflverse-data).
 
 The bundled Liberation Sans fonts in `fonts/` are © Red Hat, Inc. and licensed under the [SIL Open Font License 1.1](https://github.com/liberationfonts/liberation-fonts).
 

@@ -18,6 +18,9 @@ import { gunzipSync } from 'zlib';
 import { splitCsvLine, seasonBeingPlayed } from './records-core.js';
 import { gameDetails, addsUp, PBP_COLUMNS } from './lib/game-details.js';
 import { packersPlayerRows, playerRowsToCsv } from './lib/player-stats.js';
+import { birthDates, birthsToCsv } from './lib/player-births.js';
+import { parseCsv, mapNflverseRow, GAME_DAY, rowToCsv, GAMES_HEADER } from './lib/nflverse-games.js';
+import { attendanceOf, attendanceToCsv, parseAttendance } from './lib/attendance.js';
 
 const NFLVERSE_URL =
     'https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv';
@@ -48,130 +51,6 @@ function fetchBuffer(url) {
     });
 }
 
-// Quoted fields are real in games.csv (99 rows carry "" for an empty roof
-// or surface), so lines split with the site's own CSV splitter rather than
-// on every comma, which kept the two quote characters as the value.
-function parseCsv(raw) {
-    const lines = raw.trim().split('\n');
-    const headers = splitCsvLine(lines[0]);
-    return lines.slice(1).map(line => {
-        const vals = splitCsvLine(line);
-        const obj = {};
-        headers.forEach((h, i) => { obj[h.trim()] = (vals[i] ?? '').trim(); });
-        return obj;
-    });
-}
-
-const NFL_TEAM_NAMES = {
-    ARI: 'Arizona Cardinals',
-    ATL: 'Atlanta Falcons',
-    BAL: 'Baltimore Ravens',
-    BUF: 'Buffalo Bills',
-    CAR: 'Carolina Panthers',
-    CHI: 'Chicago Bears',
-    CIN: 'Cincinnati Bengals',
-    CLE: 'Cleveland Browns',
-    DAL: 'Dallas Cowboys',
-    DEN: 'Denver Broncos',
-    DET: 'Detroit Lions',
-    GB:  'Green Bay Packers',
-    HOU: 'Houston Texans',
-    IND: 'Indianapolis Colts',
-    JAC: 'Jacksonville Jaguars',
-    JAX: 'Jacksonville Jaguars',
-    KC:  'Kansas City Chiefs',
-    LA:  'Los Angeles Rams',
-    LAC: 'Los Angeles Chargers',
-    LAR: 'Los Angeles Rams',
-    LV:  'Las Vegas Raiders',
-    MIA: 'Miami Dolphins',
-    MIN: 'Minnesota Vikings',
-    NE:  'New England Patriots',
-    NO:  'New Orleans Saints',
-    NYG: 'New York Giants',
-    NYJ: 'New York Jets',
-    OAK: 'Oakland Raiders',
-    PHI: 'Philadelphia Eagles',
-    PIT: 'Pittsburgh Steelers',
-    SD:  'San Diego Chargers',
-    SEA: 'Seattle Seahawks',
-    SF:  'San Francisco 49ers',
-    STL: 'St. Louis Rams',
-    TB:  'Tampa Bay Buccaneers',
-    TEN: 'Tennessee Titans',
-    WAS: 'Washington Commanders',
-    WSH: 'Washington Commanders',
-};
-
-// Map a nflverse games.csv row to our internal format
-function mapNflverseRow(r) {
-    const season = parseInt(r.season);
-    const isAway = r.away_team === 'GB';
-    const isHome = r.home_team === 'GB';
-    if (!isAway && !isHome) return null;
-
-    // Only include completed games (both scores present)
-    const awayScore = r.away_score === '' ? null : parseInt(r.away_score);
-    const homeScore = r.home_score === '' ? null : parseInt(r.home_score);
-    if (awayScore === null || homeScore === null) return null;
-
-    const packersScore = isHome ? homeScore : awayScore;
-    const oppScore = isHome ? awayScore : homeScore;
-    const oppAbbr = isHome ? r.away_team : r.home_team;
-    const oppTeam = NFL_TEAM_NAMES[oppAbbr] ?? oppAbbr;
-
-    const result = packersScore > oppScore ? 'WIN' : packersScore < oppScore ? 'LOSS' : 'TIE';
-
-    // game_type: REG = regular season; WC/DIV/CON/SB = playoffs
-    const isPlayoff = !['REG'].includes(r.game_type);
-    const isRegular = r.game_type === 'REG';
-    const isSuperBowl = r.game_type === 'SB';
-
-    // location from nflverse: "Home"/"Away"/"Neutral" is in r.location (relative to home_team)
-    // We need it relative to GB
-    let location;
-    if (r.location === 'Neutral') {
-        location = 'NEUTRAL';
-    } else if (isHome) {
-        location = 'HOME';
-    } else {
-        location = 'AWAY';
-    }
-
-    return {
-        date: r.gameday,
-        season,
-        regular_season: isRegular ? 1 : 0,
-        playoff: isPlayoff ? 1 : 0,
-        superbowl: isSuperBowl ? r.game_type : '',
-        Opponent: oppTeam,
-        'Packers Win': result,
-        packers_score: packersScore,
-        opponent_score: oppScore,
-        location,
-        // ESPN's id for the game, for its box score page, and the game-day
-        // details ESPN's summary does not carry. nflverse has these for every
-        // game it lists, 1999 on; earlier rows leave them empty.
-        espn_id: clean(r.espn),
-        stadium: clean(r.stadium),
-        roof: clean(r.roof),
-        surface: clean(r.surface),
-        temp: clean(r.temp),
-        wind: clean(r.wind),
-        referee: clean(r.referee),
-    };
-}
-
-// nflverse writes a missing value as NA or an empty string.
-function clean(v) {
-    const t = String(v ?? '').trim();
-    return t === 'NA' ? '' : t;
-}
-
-// The columns a kept row takes from nflverse on every run. A row that
-// already has its result is otherwise left alone (see main), which would
-// leave every game played before these columns existed without them.
-const GAME_DAY = ['espn_id', 'stadium', 'roof', 'surface', 'temp', 'wind', 'referee'];
 
 function buildSeasonRecords(games) {
     const seasons = {};
@@ -193,22 +72,6 @@ function buildSeasonRecords(games) {
     return Object.values(seasons).sort((a, b) => a.season - b.season);
 }
 
-// A field with a comma or a quote is quoted, as CSV has it; a stadium or a
-// referee's name could carry either.
-function csvField(v) {
-    const t = String(v ?? '');
-    return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
-}
-
-function rowToCsv(r) {
-    return [
-        r.date, r.season, r.regular_season, r.playoff, r.superbowl,
-        r.Opponent, r['Packers Win'], r.packers_score, r.opponent_score, r.location,
-        ...GAME_DAY.map(k => r[k] ?? ''),
-    ].map(csvField).join(',');
-}
-
-const GAMES_HEADER = ['date,season,regular_season,playoff,superbowl,Opponent,Packers Win,packers_score,opponent_score,location', ...GAME_DAY].join(',');
 const RECORDS_HEADER = 'season,reg_w,reg_l,reg_t,post_w,post_l,post_t';
 
 async function main() {
@@ -277,7 +140,52 @@ async function main() {
     console.log(`Latest season: ${maxSeason} (${completed.length} completed games)`);
 
     await updatePlayerGames(maxSeason);
+    await updateBirths();
+    await updateAttendance(allGames);
     await updateGameDetails(nflverseRows);
+}
+
+// Each past Packers game's crowd (lib/attendance.js), from ESPN's summary,
+// for the Stadiums page: only the games the file lacks, eight at a time.
+// The season being played is left out; the server reads it from ESPN.
+const ATTENDANCE_FILE = './data/packers_attendance.csv';
+const ESPN_SUMMARY_URL = (id) => `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${id}`;
+async function updateAttendance(allGames) {
+    let have = new Map();
+    try { have = parseAttendance(readFileSync(ATTENDANCE_FILE, 'utf8')); } catch { /* first run */ }
+    const playing = seasonBeingPlayed();
+    const want = allGames
+        .filter(g => g.espn_id && parseInt(g.season) < playing && !have.has(String(g.espn_id)))
+        .map(g => String(g.espn_id));
+    if (!want.length) { console.log(`Attendance: all ${have.size} games present`); return; }
+    console.log(`Attendance: fetching ${want.length} games from ESPN`);
+    // ESPN drops a connection now and then: each game is tried three times,
+    // and the file is written after every batch, so a run that fails keeps
+    // what it got and the next asks only for the rest.
+    const summary = async (id) => {
+        for (let attempt = 1; ; attempt++) {
+            try { return JSON.parse(await fetchText(ESPN_SUMMARY_URL(id))); }
+            catch (err) { if (attempt === 3) throw err; await new Promise(r => setTimeout(r, 1000 * attempt)); }
+        }
+    };
+    for (let i = 0; i < want.length; i += 4) {
+        await Promise.all(want.slice(i, i + 4).map(async id => { have.set(id, attendanceOf(await summary(id))); }));
+        writeFileSync(ATTENDANCE_FILE, attendanceToCsv(have));
+    }
+    const none = [...have.values()].filter(n => n === null).length;
+    console.log(`Wrote ${ATTENDANCE_FILE} (${have.size} games, ${none} without a crowd from ESPN)`);
+}
+
+// Each Packers player's birth date (lib/player-births.js), for the On This
+// Day card: everyone in data/packers_player_games.csv. players.csv is every
+// player in the league's records, about 7MB.
+const PLAYERS_URL = 'https://github.com/nflverse/nflverse-data/releases/download/players/players.csv';
+async function updateBirths() {
+    const ids = new Set(readFileSync('./data/packers_player_games.csv', 'utf8').split('\n').slice(1)
+        .map(line => line.slice(0, line.indexOf(','))).filter(Boolean));
+    const births = birthDates((await fetchBuffer(PLAYERS_URL)).toString('utf8'), ids);
+    writeFileSync('./data/packers_player_births.csv', birthsToCsv(births));
+    console.log(`Wrote data/packers_player_births.csv (${births.size} of ${ids.size} players)`);
 }
 
 // Each past Packers game's quarters, scoring plays and drives, from

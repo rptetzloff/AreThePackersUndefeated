@@ -18,7 +18,12 @@ import { h2hMeta, isOpponentSlug } from './lib/h2h.js';
 import { derive } from './lib/derived.js';
 import { currentSeasonRows, rowsToCsv } from './lib/current-season.js';
 import { packersPlayerRows, parsePlayerGames } from './lib/player-stats.js';
-import { CATEGORIES, seasonTables, seasonsOf, leaders, playerSummary, gameLog, playerIndex, PLAYER_ID } from './stats-core.js';
+import { birthDates, parseBirths } from './lib/player-births.js';
+import { parseCsv as parseNflverseCsv, mapNflverseRow, rowToCsv, GAMES_HEADER } from './lib/nflverse-games.js';
+import { attendanceOf, parseAttendance } from './lib/attendance.js';
+import { stadiumStats } from './stadiums-core.js';
+import { splitStats, starterRecord } from './splits-core.js';
+import { CATEGORIES, seasonTables, seasonsOf, leaders, playerSummary, gameLog, playerIndex, bornOn, PLAYER_ID } from './stats-core.js';
 import { esc, parseGames, poolCurrentSeason, seasonBeingPlayed } from './records-core.js';
 import { espnTarget } from './lib/espn-target.js';
 import { createEspnCache, browserMaxAge } from './lib/espn-proxy.js';
@@ -74,14 +79,16 @@ function loadShell(file, assets) {
     return html;
   }, stripped);
 }
-const INDEX_VERSIONED = loadShell('index.html', ['main.js', 'styles.css', 'theme.js']);
-const RECORDS_VERSIONED = loadShell('records.html', ['records.js', 'styles.css', 'theme.js']);
-const VS_VERSIONED = loadShell('vs.html', ['vs.js', 'styles.css', 'theme.js']);
-const HISTORY_VERSIONED = loadShell('history.html', ['history.js', 'styles.css', 'theme.js']);
-const COACHES_VERSIONED = loadShell('coaches.html', ['coaches.js', 'styles.css', 'theme.js']);
-const GAME_VERSIONED = loadShell('game.html', ['game.js', 'styles.css', 'theme.js']);
-const STATS_VERSIONED = loadShell('stats.html', ['stats.js', 'styles.css', 'theme.js']);
-const PLAYER_VERSIONED = loadShell('player.html', ['player.js', 'styles.css', 'theme.js']);
+const INDEX_VERSIONED = loadShell('index.html', ['main.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const RECORDS_VERSIONED = loadShell('records.html', ['records.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const VS_VERSIONED = loadShell('vs.html', ['vs.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const HISTORY_VERSIONED = loadShell('history.html', ['history.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const COACHES_VERSIONED = loadShell('coaches.html', ['coaches.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const GAME_VERSIONED = loadShell('game.html', ['game.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const STATS_VERSIONED = loadShell('stats.html', ['stats.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const PLAYER_VERSIONED = loadShell('player.html', ['player.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const STADIUMS_VERSIONED = loadShell('stadiums.html', ['stadiums.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const SPLITS_VERSIONED = loadShell('splits.html', ['splits.js', 'styles.css', 'theme.js', 'license-modal.js']);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -229,6 +236,115 @@ async function playerGamesNow() {
   return statsMemo;
 }
 
+// Birth dates (lib/player-births.js): the committed file, and anyone it
+// lacks, a player new in the season being played, from nflverse's
+// players.csv (7MB), at most once a day and only while someone is missing.
+// The fetch is not waited for: the card shows who is known now and the
+// newcomer from the next request after it lands.
+const committedBirths = parseBirths(readFileSync(join(ROOT, 'data', 'packers_player_births.csv'), 'utf8'));
+const BIRTHS_TTL = 24 * 60 * 60 * 1000;
+let birthsAdded = { at: 0, births: new Map(), inFlight: null };
+function birthsNow(rows) {
+  const missing = new Set();
+  for (const r of rows) if (r.player_id && !committedBirths.has(r.player_id) && !birthsAdded.births.has(r.player_id)) missing.add(r.player_id);
+  if (missing.size && !birthsAdded.inFlight && Date.now() - birthsAdded.at > BIRTHS_TTL) {
+    birthsAdded.inFlight = (async () => {
+      try {
+        const r = await fetch('https://github.com/nflverse/nflverse-data/releases/download/players/players.csv');
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const got = birthDates(await r.text(), missing);
+        birthsAdded = { at: Date.now(), births: new Map([...birthsAdded.births, ...got]), inFlight: null };
+      } catch {
+        // Try again in an hour.
+        birthsAdded = { ...birthsAdded, at: Date.now() - BIRTHS_TTL + 60 * 60 * 1000, inFlight: null };
+      }
+    })();
+  }
+  return birthsAdded.births.size ? new Map([...committedBirths, ...birthsAdded.births]) : committedBirths;
+}
+
+// The Stadiums page (stadiums-core.js). Its games are the CSV's, with the
+// season being played from nflverse's schedules at runtime, refreshed every
+// six hours: ESPN's schedule, which counts that season everywhere else, has
+// no roof, surface, weather or referee. Until the first fetch succeeds, and
+// whenever nflverse has fewer of the season's games than the CSV, the CSV's
+// stand.
+const NFLVERSE_GAMES_TTL = 6 * 60 * 60 * 1000;
+let nflverseCurrent = { at: 0, season: null, games: null, inFlight: null };
+async function currentGameDayRows() {
+  const season = seasonBeingPlayed();
+  const fresh = nflverseCurrent.season === season && Date.now() - nflverseCurrent.at < NFLVERSE_GAMES_TTL;
+  if (!fresh && !nflverseCurrent.inFlight) {
+    nflverseCurrent.inFlight = (async () => {
+      try {
+        const r = await fetch('https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv');
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const mapped = parseNflverseCsv(await r.text()).map(mapNflverseRow).filter((g) => g && g.season === season);
+        const games = parseGames([GAMES_HEADER, ...mapped.map(rowToCsv)].join('\n'));
+        nflverseCurrent = { at: Date.now(), season, games, inFlight: null };
+      } catch {
+        // Keep what we had; try again on the next request after a minute.
+        nflverseCurrent = { ...nflverseCurrent, at: Date.now() - NFLVERSE_GAMES_TTL + 60 * 1000, inFlight: null };
+      }
+    })();
+  }
+  if (!nflverseCurrent.games) await nflverseCurrent.inFlight;
+  const committed = allGames.filter((g) => Number(g.season) === season);
+  const cur = nflverseCurrent.season === season ? nflverseCurrent.games : null;
+  if (!cur || cur.length < committed.length) return { version: 'csv', rows: allGames };
+  return { version: String(nflverseCurrent.at), rows: [...allGames.filter((g) => Number(g.season) !== season), ...cur] };
+}
+
+// Crowds (lib/attendance.js): the committed file, and a game it lacks (the
+// season being played) from ESPN's summary through the proxy's cache. A
+// finished game's crowd is kept for good once read; ESPN not answering
+// leaves it out until a later request.
+const committedAttendance = parseAttendance(readFileSync(join(ROOT, 'data', 'packers_attendance.csv'), 'utf8'));
+const addedAttendance = new Map();
+async function attendanceFor(rows) {
+  const missing = rows.filter((g) => g.espnId && g.result && !committedAttendance.has(g.espnId) && !addedAttendance.has(g.espnId));
+  await Promise.all(missing.map(async (g) => {
+    const got = await espn.get(espnTarget('apis/site/v2/sports/football/nfl/summary', `event=${g.espnId}`)).catch(() => null);
+    if (!got || got.status !== 200) return;
+    try {
+      const summary = JSON.parse(got.body);
+      if (summary?.header?.competitions?.[0]?.status?.type?.completed) addedAttendance.set(g.espnId, attendanceOf(summary));
+    } catch { /* left out */ }
+  }));
+  return addedAttendance.size ? new Map([...committedAttendance, ...addedAttendance]) : committedAttendance;
+}
+
+let stadiumsMemo = null; // { key, json, data }
+async function stadiumsNow() {
+  const { version, rows } = await currentGameDayRows();
+  const attendance = await attendanceFor(rows);
+  const key = `${version}|${attendance.size}`;
+  if (stadiumsMemo?.key !== key) {
+    const data = stadiumStats(rows, attendance);
+    stadiumsMemo = { key, data, json: JSON.stringify(data) };
+  }
+  return stadiumsMemo;
+}
+
+// The Splits page (splits-core.js), from the same rows as Stadiums: the CSV's,
+// with the season being played from nflverse's schedules.
+let splitsMemo = null; // { version, json }
+async function splitsNow() {
+  const { version, rows } = await currentGameDayRows();
+  if (splitsMemo?.version !== version) splitsMemo = { version, rows, json: JSON.stringify(splitStats(rows)) };
+  return splitsMemo;
+}
+
+// /api/born/<MM-DD>: the Packers born that day, for the On This Day card.
+async function serveBornApi(res, monthDay) {
+  const d = await playerGamesNow();
+  const key = `born|${monthDay}|${birthsAdded.at}`;
+  if (!d.cache.has(key)) d.cache.set(key, JSON.stringify(bornOn(d.rows, birthsNow(d.rows), monthDay)));
+  else birthsNow(d.rows);
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+  res.end(d.cache.get(key));
+}
+
 // /api/players: every player since 1999, for search. /api/player/<id>: one
 // player's seasons and career by category, and a season's game log (the
 // latest, unless ?season= names another of his). Both from the same rows
@@ -251,7 +367,10 @@ async function servePlayerApi(res, url, id) {
   const asked = Number(url.searchParams.get('season'));
   const season = summary.seasons.includes(asked) ? asked : summary.seasons[0];
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
-  res.end(JSON.stringify({ ...summary, log: gameLog(d.rows, id, season) }));
+  // A quarterback's record as the Packers' starter (splits-core.js), from
+  // nflverse's schedules; null for everyone else.
+  const starts = starterRecord((await splitsNow()).rows, id);
+  res.end(JSON.stringify({ ...summary, starts, log: gameLog(d.rows, id, season) }));
 }
 
 async function servePlayerHtml(req, res, id) {
@@ -535,6 +654,8 @@ const server = http.createServer(async (req, res) => {
       return res.end(cur.csv);
     }
 
+    const born = pathname.match(/^\/api\/born\/((?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))$/);
+    if (born) return await serveBornApi(res, born[1]);
     if (pathname === '/api/players') return await servePlayersApi(res);
     if (pathname.startsWith('/api/player/')) {
       const id = pathname.slice('/api/player/'.length);
@@ -548,6 +669,32 @@ const server = http.createServer(async (req, res) => {
     }
     if (pathname === '/api/stats') return await serveStatsApi(res, url, 'season');
     if (pathname === '/api/stats/leaders') return await serveStatsApi(res, url, 'leaders');
+    if (pathname === '/api/stadiums') {
+      const st = await stadiumsNow();
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      return res.end(st.json);
+    }
+    if (pathname === '/api/splits') {
+      const sp = await splitsNow();
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      return res.end(sp.json);
+    }
+    if (pathname === '/splits' || pathname === '/splits/' || pathname === '/splits.html') {
+      const origin = originOf(req);
+      return sendPage(res, SPLITS_VERSIONED, {
+        title: 'Packers Splits',
+        desc: 'The Packers by day and kickoff, in close games and overtime, as favorites and underdogs, and by starting quarterback, since 1999.',
+        img: origin + '/og/default.png', canonical: origin + '/splits',
+      });
+    }
+    if (pathname === '/stadiums' || pathname === '/stadiums/' || pathname === '/stadiums.html') {
+      const origin = originOf(req);
+      return sendPage(res, STADIUMS_VERSIONED, {
+        title: 'Packers Stadiums',
+        desc: "Lambeau Field, the coldest and windiest games, the biggest crowds, and the Packers' record in every road stadium and with every referee, since 1999.",
+        img: `${origin}/og/default.png`, canonical: `${origin}/stadiums`,
+      });
+    }
     if (pathname === '/stats' || pathname === '/stats/' || pathname === '/stats.html') {
       const origin = originOf(req);
       return sendPage(res, STATS_VERSIONED, {

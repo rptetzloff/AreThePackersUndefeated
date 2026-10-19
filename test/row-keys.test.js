@@ -23,10 +23,12 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url))
 /** The files permitted to name the CSV's columns.
  *
  *  records-core.js is the parser — naming them is its entire job. update-data.js
- *  writes the file, so it defines them. Tests are excluded from the scan
- *  altogether: test/data.test.js asserts the real CSV still has these columns,
- *  which is exactly the contract that makes the parser safe. */
-const OWNERS = new Set(['records-core.js', 'update-data.js'])
+ *  writes the file, so it defines them, with lib/nflverse-games.js's mapping
+ *  (shared with the server, which reads the season being played through it
+ *  and hands the result straight to parseGames). Tests are excluded from the
+ *  scan altogether: test/data.test.js asserts the real CSV still has these
+ *  columns, which is exactly the contract that makes the parser safe. */
+const OWNERS = new Set(['records-core.js', 'update-data.js', 'nflverse-games.js'])
 
 /** Property accesses, not bare words. A comment explaining that the CSV has a
  *  column called superbowl is fine and should stay legible; `g.superbowl` in
@@ -88,8 +90,9 @@ test('parseGames produces the neutral keys and none of the CSV ones', () => {
 	// or renaming one breaks every page, so it should take a deliberate edit
 	// here rather than a silent undefined at the call site.
 	assert.deepEqual(Object.keys(row).sort(), [
-		'Opponent', 'championship', 'date', 'espnId', 'location', 'playoff',
+		'Opponent', 'championship', 'date', 'division', 'espnId', 'kickoff', 'location',
+		'oppQb', 'oppQbId', 'overtime', 'playoff', 'qb', 'qbId',
 		'referee', 'regular_season', 'result', 'roof', 'scoreAgainst', 'scoreFor',
-		'season', 'stadium', 'surface', 'temp', 'wind',
+		'season', 'spread', 'stadium', 'stadiumId', 'surface', 'temp', 'weekday', 'wind',
 	])
 })
