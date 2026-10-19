@@ -122,15 +122,15 @@ export function drivesHtml(box) {
 		+ `<td>${esc(d.from)}</td>`
 		+ `<td>${esc(d.summary)}</td>`
 		+ `<td class="game-drive-result">${esc(d.result)}</td></tr>`).join('');
-	return section('Drives', `<div class="game-table-wrap"><table class="game-table game-drives"><thead><tr><th>Team</th><th>Start</th><th>From</th><th>Drive</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table></div>`, { collapsed: true });
+	return section('Drives', `<div class="game-table-wrap"><table class="game-table game-drives"><thead><tr><th>Team</th><th>Start</th><th>From</th><th>Drive</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table></div>`);
 }
 
-/** One team's player tables, one per category, as ESPN labels them. */
+/** One team's player tables, one per category, as ESPN labels them: the
+ *  body of that team's tab. */
 export function playersHtml(box, side) {
 	const cats = box.players[side];
 	if (!cats.length) return '';
-	const t = box[side];
-	const tables = cats.map((c) => {
+	return cats.map((c) => {
 		const head = `<tr><th class="game-player-col">${esc(c.title)}</th>${c.labels.map((l) => `<th>${esc(l)}</th>`).join('')}</tr>`;
 		const rows = c.rows.map((r) => `<tr><th scope="row" class="game-player-col">${esc(r.name)}</th>${c.labels.map((_, i) => `<td>${esc(r.stats[i] ?? '')}</td>`).join('')}</tr>`).join('');
 		const totals = c.totals && c.rows.length > 1
@@ -138,21 +138,34 @@ export function playersHtml(box, side) {
 			: '';
 		return `<div class="game-table-wrap"><table class="game-table game-players"><thead>${head}</thead><tbody>${rows}${totals}</tbody></table></div>`;
 	}).join('');
-	return section(t.name, tables, { ours: box.teamSide === side });
 }
 
-function section(title, body, { collapsed = false, ours = false } = {}) {
-	return `<details class="game-section${ours ? ' game-section-ours' : ''}"${collapsed ? '' : ' open'}><summary class="collapsible-summary">${esc(title)}</summary>${body}</details>`;
+/**
+ * The player stats as two team tabs, as the Brewers box score page has
+ * them: away on the left, home on the right, as the line score reads. The
+ * open one is `selected` ('away' or 'home'), else ours. Both panels are in
+ * the page and a tab only hides the other, so switching needs no redraw.
+ */
+export function teamTabsHtml(box, selected = null) {
+	const sides = ['away', 'home'].filter((s) => box.players[s].length);
+	if (!sides.length) return '';
+	const open = sides.includes(selected) ? selected : sides.includes(box.teamSide) ? box.teamSide : sides[0];
+	const tabs = sides.map((s) => `<button type="button" class="game-teamtab${s === open ? ' active' : ''}${s === box.teamSide ? ' game-teamtab-ours' : ''}" role="tab" id="game-tab-${s}" aria-controls="game-panel-${s}" aria-selected="${s === open}" data-side="${s}">${esc(box[s].name)}</button>`).join('');
+	const panels = sides.map((s) => `<div class="game-teampanel" role="tabpanel" id="game-panel-${s}" aria-labelledby="game-tab-${s}" data-side="${s}"${s === open ? '' : ' hidden'}>${playersHtml(box, s)}</div>`).join('');
+	return section('Player Stats', `<div class="game-teamtabs" role="tablist">${tabs}</div>${panels}`);
 }
 
-/** The whole page body. Ours first among the player tables. */
-export function gamePageHtml(box) {
-	const order = box.teamSide === 'away' ? ['away', 'home'] : ['home', 'away'];
+function section(title, body) {
+	return `<section class="game-section"><h3 class="game-section-title">${esc(title)}</h3>${body}</section>`;
+}
+
+/** The whole page body. `selected` is the team tab the reader picked. */
+export function gamePageHtml(box, selected = null) {
 	return headerHtml(box)
 		+ situationHtml(box)
 		+ lineScoreHtml(box)
 		+ scoringHtml(box)
 		+ teamStatsHtml(box)
-		+ order.map((s) => playersHtml(box, s)).join('')
+		+ teamTabsHtml(box, selected)
 		+ drivesHtml(box);
 }

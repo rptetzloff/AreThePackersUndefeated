@@ -11,14 +11,11 @@ const errorEl = document.getElementById('game-error');
 
 const idFromPath = () => window.location.pathname.match(/^\/game\/(\d{6,12})\/?$/)?.[1] || null;
 
-// The sections a reader opened or closed survive a redraw.
+// The team tab the reader picked, kept across a live game's redraws.
+let selectedSide = null;
+
 function render(box) {
-	const open = new Map([...root.querySelectorAll('details.game-section')].map((d) => [d.querySelector('summary').textContent, d.open]));
-	root.innerHTML = gamePageHtml(box);
-	for (const d of root.querySelectorAll('details.game-section')) {
-		const was = open.get(d.querySelector('summary').textContent);
-		if (was !== undefined) d.open = was;
-	}
+	root.innerHTML = gamePageHtml(box, selectedSide);
 	loading.hidden = true;
 	document.title = `${gameTitle(box)} · Are the Packers Undefeated?`;
 }
@@ -55,6 +52,31 @@ function follow(id, first) {
 	});
 	timer = setTimeout(tick, wait(first));
 }
+
+// Team tabs, wired once on the root, which survives redraws. Arrow keys
+// move between the two, as a tablist should.
+function selectTab(tab) {
+	selectedSide = tab.dataset.side;
+	for (const t of root.querySelectorAll('.game-teamtab')) {
+		const on = t === tab;
+		t.classList.toggle('active', on);
+		t.setAttribute('aria-selected', String(on));
+	}
+	for (const p of root.querySelectorAll('.game-teampanel')) p.hidden = p.dataset.side !== selectedSide;
+}
+root.addEventListener('click', (e) => {
+	const tab = e.target.closest('.game-teamtab');
+	if (tab) selectTab(tab);
+});
+root.addEventListener('keydown', (e) => {
+	const tab = e.target.closest('.game-teamtab');
+	if (!tab || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+	const other = [...root.querySelectorAll('.game-teamtab')].find((t) => t !== tab);
+	if (!other) return;
+	e.preventDefault();
+	selectTab(other);
+	other.focus();
+});
 
 async function main() {
 	const id = idFromPath();

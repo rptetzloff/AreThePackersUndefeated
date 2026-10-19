@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { espnBoxscore } from '../lib/espn-box.js'
-import { gamePageHtml, gameTitle, headerHtml, lineScoreHtml, scoringHtml, teamStatsHtml, playersHtml, drivesHtml, situationHtml, quarterName, longDate } from '../game-core.js'
+import { gamePageHtml, gameTitle, headerHtml, lineScoreHtml, scoringHtml, teamStatsHtml, playersHtml, teamTabsHtml, drivesHtml, situationHtml, quarterName, longDate } from '../game-core.js'
 
 // A real summary, trimmed to the fields espn-box.js reads: Bears at Packers,
 // 11 October 2026, 31-7. The trimming was checked to reduce to the same box
@@ -92,15 +92,43 @@ test('a game in progress carries down and distance, who has the ball, and the la
 	assert.match(headerHtml(live), /game-status-live/)
 })
 
-test('the page: header, line score, scoring, team stats, our players first, drives last and closed', () => {
+test('the page: header, line score, scoring, team stats, player stats, drives, each under a heading', () => {
 	const html = gamePageHtml(box)
-	const at = (s) => html.indexOf(s)
-	assert.ok(at('game-header') < at('Score by Quarter'))
-	assert.ok(at('Score by Quarter') < at('<summary class="collapsible-summary">Scoring'))
-	assert.ok(at('Team Stats') < at('Green Bay Packers</summary>'))
-	assert.ok(at('Green Bay Packers</summary>') < at('Chicago Bears</summary>'))
-	assert.match(html, /<details class="game-section"><summary class="collapsible-summary">Drives/)
+	const titles = [...html.matchAll(/<h3 class="game-section-title">([^<]+)</g)].map((m) => m[1])
+	assert.deepEqual(titles, ['Score by Quarter', 'Scoring', 'Team Stats', 'Player Stats', 'Drives'])
+	assert.ok(html.indexOf('game-header') < html.indexOf('Score by Quarter'))
+	// Nothing on the page is a disclosure any more.
+	assert.doesNotMatch(html, /<details|<summary/)
 	assert.equal(gameTitle(box), 'Bears 7, Packers 31')
+})
+
+// The tabs and panels as [side, open] pairs.
+const tabsOf = (html) => [...html.matchAll(/class="game-teamtab( active)?[^"]*"[^>]*data-side="(\w+)"/g)].map((m) => [m[2], Boolean(m[1])])
+const openPanels = (html) => [...html.matchAll(/class="game-teampanel"[^>]*data-side="(\w+)"([^>]*)>/g)].filter((m) => !/hidden/.test(m[2])).map((m) => m[1])
+
+test('player stats are two team tabs, away on the left, ours open unless the reader picked the other', () => {
+	assert.deepEqual(tabsOf(teamTabsHtml(box)), [['away', false], ['home', true]])
+	assert.deepEqual(openPanels(teamTabsHtml(box)), ['home'])
+	assert.deepEqual(openPanels(teamTabsHtml(box, 'away')), ['away'])
+	// A road game opens on our tab too, still on the left.
+	const road = { ...box, teamSide: 'away' }
+	assert.deepEqual(tabsOf(teamTabsHtml(road)), [['away', true], ['home', false]])
+	// A pick that is not a side is ignored.
+	assert.deepEqual(openPanels(teamTabsHtml(box, 'nonsense')), ['home'])
+	const html = teamTabsHtml(box)
+	assert.match(html, /role="tablist"/)
+	assert.match(html, /id="game-tab-home" aria-controls="game-panel-home" aria-selected="true"/)
+	assert.match(html, /role="tabpanel" id="game-panel-away" aria-labelledby="game-tab-away" data-side="away" hidden>/)
+	// Each panel holds that team's tables, and only theirs.
+	const homePanel = html.slice(html.indexOf('id="game-panel-home"'))
+	assert.match(homePanel, /Jordan Love/)
+	assert.doesNotMatch(homePanel, /Case Keenum/)
+})
+
+test('a team with no player stats gets no tab; neither, no section', () => {
+	const oneSided = { ...box, players: { away: [], home: box.players.home } }
+	assert.deepEqual(tabsOf(teamTabsHtml(oneSided)), [['home', true]])
+	assert.equal(teamTabsHtml({ ...box, players: { away: [], home: [] } }), '')
 })
 
 test('the header: winner marked, ours marked, date where it was played, the crowd', () => {

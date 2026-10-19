@@ -2172,12 +2172,54 @@ th.sorted-desc::after {
     text-align: left;
 }
 
-.game-section > .collapsible-summary {
-    margin-bottom: 0.4rem;
+.game-section-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #ffb612;
+    margin: 0.25rem 0 0.5rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid rgba(255, 182, 18, 0.2);
 }
 
-.game-section-ours > .collapsible-summary {
+/* The player stats' team tabs, from the Brewers box score page. */
+.game-teamtabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(255, 182, 18, 0.25);
+}
+
+.game-teamtab {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    color: rgba(255, 255, 255, 0.65);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.55rem 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.game-teamtab:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.game-teamtab.active {
+    background: rgba(255, 182, 18, 0.15);
+    border-color: rgba(255, 182, 18, 0.4);
     color: #ffb612;
+}
+
+.game-teamtab:focus-visible {
+    outline: 2px solid #ffb612;
+    outline-offset: -2px;
 }
 
 /* Tables scroll sideways inside their own box on a phone; the page never

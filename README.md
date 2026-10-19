@@ -68,7 +68,7 @@ Each played or live game on the schedule links to its own page (Box) and to ESPN
 
 ## Game Pages
 
-`/game/<ESPN event id>` is a game's box score: both teams with records and the score, where it was played and the crowd, the score by quarter, every scoring play under its quarter with the running score, the team stats side by side, each team's player tables (passing, rushing, receiving, fumbles, defense, interceptions, returns, kicking, punting) with the Packers first, and the drives. A game in progress adds who has the ball, down and distance and the last play, and redraws every 15 seconds until it is final.
+`/game/<ESPN event id>` is a game's box score: both teams with records and the score, where it was played and the crowd, the score by quarter, every scoring play under its quarter with the running score, the team stats side by side, each team's player tables (passing, rushing, receiving, fumbles, defense, interceptions, returns, kicking, punting) behind a tab per team, away on the left and the Packers' open, and the drives. Every section is under a plain heading; nothing is collapsed. A game in progress adds who has the ball, down and distance and the last play, and redraws every 15 seconds until it is final.
 
 The server boils ESPN's game summary (about 600KB) down to about 15KB (`lib/espn-box.js`) and serves it at `/api/boxscore/<id>`; the page draws it (`game-core.js`). The page's title and link preview carry the score.
 
