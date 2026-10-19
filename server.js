@@ -79,16 +79,16 @@ function loadShell(file, assets) {
     return html;
   }, stripped);
 }
-const INDEX_VERSIONED = loadShell('index.html', ['main.js', 'styles.css', 'theme.js']);
-const RECORDS_VERSIONED = loadShell('records.html', ['records.js', 'styles.css', 'theme.js']);
-const VS_VERSIONED = loadShell('vs.html', ['vs.js', 'styles.css', 'theme.js']);
-const HISTORY_VERSIONED = loadShell('history.html', ['history.js', 'styles.css', 'theme.js']);
-const COACHES_VERSIONED = loadShell('coaches.html', ['coaches.js', 'styles.css', 'theme.js']);
-const GAME_VERSIONED = loadShell('game.html', ['game.js', 'styles.css', 'theme.js']);
-const STATS_VERSIONED = loadShell('stats.html', ['stats.js', 'styles.css', 'theme.js']);
-const PLAYER_VERSIONED = loadShell('player.html', ['player.js', 'styles.css', 'theme.js']);
-const STADIUMS_VERSIONED = loadShell('stadiums.html', ['stadiums.js', 'styles.css', 'theme.js']);
-const SPLITS_VERSIONED = loadShell('splits.html', ['splits.js', 'styles.css', 'theme.js']);
+const INDEX_VERSIONED = loadShell('index.html', ['main.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const RECORDS_VERSIONED = loadShell('records.html', ['records.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const VS_VERSIONED = loadShell('vs.html', ['vs.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const HISTORY_VERSIONED = loadShell('history.html', ['history.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const COACHES_VERSIONED = loadShell('coaches.html', ['coaches.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const GAME_VERSIONED = loadShell('game.html', ['game.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const STATS_VERSIONED = loadShell('stats.html', ['stats.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const PLAYER_VERSIONED = loadShell('player.html', ['player.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const STADIUMS_VERSIONED = loadShell('stadiums.html', ['stadiums.js', 'styles.css', 'theme.js', 'license-modal.js']);
+const SPLITS_VERSIONED = loadShell('splits.html', ['splits.js', 'styles.css', 'theme.js', 'license-modal.js']);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',

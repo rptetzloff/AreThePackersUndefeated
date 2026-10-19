@@ -286,6 +286,8 @@ The app determines which data source to use automatically: seasons present in th
 
 ## Licenses
 
+Every page's footer has a **Disclaimer** link ("Legal" on a phone) that opens a Data & Licenses modal (`license-modal.js`, ported from the Brewers site). It says the site is an independent fan site, names each data source with the notice its license asks for (nflverse's CC BY 4.0 with the changes made, FiveThirtyEight's MIT License, ESPN, Wikimedia Commons), says the point spreads are not betting advice, and links to GitHub issues for corrections. `test/disclaimer.test.js` holds every page to loading it and the modal to naming every source.
+
 Application source code is released under the MIT License. See [LICENSE](LICENSE).
 
 The FiveThirtyEight NFL ELO game data in `data/packers_games.csv` (seasons 1921–1998) is redistributed under the MIT License granted by FiveThirtyEight. See [LICENSE-DATA](LICENSE-DATA).
