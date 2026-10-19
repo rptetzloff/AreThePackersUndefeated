@@ -18,6 +18,7 @@ import { gunzipSync } from 'zlib';
 import { splitCsvLine, seasonBeingPlayed } from './records-core.js';
 import { gameDetails, addsUp, PBP_COLUMNS } from './lib/game-details.js';
 import { packersPlayerRows, playerRowsToCsv } from './lib/player-stats.js';
+import { birthDates, birthsToCsv } from './lib/player-births.js';
 
 const NFLVERSE_URL =
     'https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv';
@@ -277,7 +278,20 @@ async function main() {
     console.log(`Latest season: ${maxSeason} (${completed.length} completed games)`);
 
     await updatePlayerGames(maxSeason);
+    await updateBirths();
     await updateGameDetails(nflverseRows);
+}
+
+// Each Packers player's birth date (lib/player-births.js), for the On This
+// Day card: everyone in data/packers_player_games.csv. players.csv is every
+// player in the league's records, about 7MB.
+const PLAYERS_URL = 'https://github.com/nflverse/nflverse-data/releases/download/players/players.csv';
+async function updateBirths() {
+    const ids = new Set(readFileSync('./data/packers_player_games.csv', 'utf8').split('\n').slice(1)
+        .map(line => line.slice(0, line.indexOf(','))).filter(Boolean));
+    const births = birthDates((await fetchBuffer(PLAYERS_URL)).toString('utf8'), ids);
+    writeFileSync('./data/packers_player_births.csv', birthsToCsv(births));
+    console.log(`Wrote data/packers_player_births.csv (${births.size} of ${ids.size} players)`);
 }
 
 // Each past Packers game's quarters, scoring plays and drives, from

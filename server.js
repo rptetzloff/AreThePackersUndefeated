@@ -18,7 +18,8 @@ import { h2hMeta, isOpponentSlug } from './lib/h2h.js';
 import { derive } from './lib/derived.js';
 import { currentSeasonRows, rowsToCsv } from './lib/current-season.js';
 import { packersPlayerRows, parsePlayerGames } from './lib/player-stats.js';
-import { CATEGORIES, seasonTables, seasonsOf, leaders, playerSummary, gameLog, playerIndex, PLAYER_ID } from './stats-core.js';
+import { birthDates, parseBirths } from './lib/player-births.js';
+import { CATEGORIES, seasonTables, seasonsOf, leaders, playerSummary, gameLog, playerIndex, bornOn, PLAYER_ID } from './stats-core.js';
 import { esc, parseGames, poolCurrentSeason, seasonBeingPlayed } from './records-core.js';
 import { espnTarget } from './lib/espn-target.js';
 import { createEspnCache, browserMaxAge } from './lib/espn-proxy.js';
@@ -227,6 +228,43 @@ async function playerGamesNow() {
     : committedPlayerGames;
   statsMemo = { key, rows, seasons: seasonsOf(rows), cache: new Map() };
   return statsMemo;
+}
+
+// Birth dates (lib/player-births.js): the committed file, and anyone it
+// lacks, a player new in the season being played, from nflverse's
+// players.csv (7MB), at most once a day and only while someone is missing.
+// The fetch is not waited for: the card shows who is known now and the
+// newcomer from the next request after it lands.
+const committedBirths = parseBirths(readFileSync(join(ROOT, 'data', 'packers_player_births.csv'), 'utf8'));
+const BIRTHS_TTL = 24 * 60 * 60 * 1000;
+let birthsAdded = { at: 0, births: new Map(), inFlight: null };
+function birthsNow(rows) {
+  const missing = new Set();
+  for (const r of rows) if (r.player_id && !committedBirths.has(r.player_id) && !birthsAdded.births.has(r.player_id)) missing.add(r.player_id);
+  if (missing.size && !birthsAdded.inFlight && Date.now() - birthsAdded.at > BIRTHS_TTL) {
+    birthsAdded.inFlight = (async () => {
+      try {
+        const r = await fetch('https://github.com/nflverse/nflverse-data/releases/download/players/players.csv');
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const got = birthDates(await r.text(), missing);
+        birthsAdded = { at: Date.now(), births: new Map([...birthsAdded.births, ...got]), inFlight: null };
+      } catch {
+        // Try again in an hour.
+        birthsAdded = { ...birthsAdded, at: Date.now() - BIRTHS_TTL + 60 * 60 * 1000, inFlight: null };
+      }
+    })();
+  }
+  return birthsAdded.births.size ? new Map([...committedBirths, ...birthsAdded.births]) : committedBirths;
+}
+
+// /api/born/<MM-DD>: the Packers born that day, for the On This Day card.
+async function serveBornApi(res, monthDay) {
+  const d = await playerGamesNow();
+  const key = `born|${monthDay}|${birthsAdded.at}`;
+  if (!d.cache.has(key)) d.cache.set(key, JSON.stringify(bornOn(d.rows, birthsNow(d.rows), monthDay)));
+  else birthsNow(d.rows);
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+  res.end(d.cache.get(key));
 }
 
 // /api/players: every player since 1999, for search. /api/player/<id>: one
@@ -535,6 +573,8 @@ const server = http.createServer(async (req, res) => {
       return res.end(cur.csv);
     }
 
+    const born = pathname.match(/^\/api\/born\/((?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))$/);
+    if (born) return await serveBornApi(res, born[1]);
     if (pathname === '/api/players') return await servePlayersApi(res);
     if (pathname.startsWith('/api/player/')) {
       const id = pathname.slice('/api/player/'.length);

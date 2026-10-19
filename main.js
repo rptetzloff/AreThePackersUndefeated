@@ -1181,27 +1181,71 @@ buildOnThisDay() {
   const todayDay = isNaN(today) ? new Date().getDate() : today.getDate();
 
   const candidates = onThisDayCandidates(this.csvBySeason, todayMonth, todayDay);
-  if (candidates.length === 0) { el.hidden = true; return; }
+  const pool = candidates.length ? onThisDayPool(candidates, this.photosBySeason) : [];
 
-  const pool = onThisDayPool(candidates, this.photosBySeason);
-  this._renderOnThisDay(el, pool[Math.floor(Math.random() * pool.length)], pool);
+  // Packers born today, from /api/born: the exact day, where the games look
+  // three days either side. The game renders at once and the birthdays join
+  // it when they arrive; on a day with no game near it, the birthdays are
+  // the card.
+  this._otdBirths = [];
+  const pick = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  if (pick) this._renderOnThisDay(el, pick, pool);
+  else el.hidden = true;
+  const monthDay = `${String(todayMonth + 1).padStart(2, '0')}-${String(todayDay).padStart(2, '0')}`;
+  fetch(`/api/born/${monthDay}`)
+    .then((r) => (r.ok ? r.json() : []))
+    .then((born) => {
+      this._otdBirths = Array.isArray(born) ? born : [];
+      if (!this._otdBirths.length) return;
+      // The game shown may have changed with the refresh button.
+      if (pick) this._renderOnThisDay(el, this._otdPick || pick, pool);
+      else this._renderBirthsOnly(el);
+    })
+    .catch(() => {});
+}
+
+// ?otd= comes from the address bar, so it is escaped where it becomes HTML:
+// unescaped, /?otd=<img src=x onerror=…> ran script in the page (CodeQL
+// alert #2, js/xss). Everything else in the card comes from the CSV and is
+// escaped too, rather than trusted.
+_otdResetLink() {
+  const otdParam = new URLSearchParams(window.location.search).get('otd');
+  return otdParam
+  ? `<a class="otd-reset" href="${esc(window.location.pathname)}" aria-label="Reset date override">Using ${esc(otdParam)} &times;</a>`
+  : '';
+}
+
+// "Born on this day: Aaron Rodgers (1983) · …": the three longest Packers
+// careers, linked to their pages, and a count of the rest.
+_birthsHtml() {
+  const born = this._otdBirths || [];
+  if (!born.length) return '';
+  const shown = born.slice(0, 3).map((b) => `<a href="/player/${esc(b.id)}">${esc(b.name)}</a> <span class="otd-born-year">(${esc(b.year)})</span>`);
+  const more = born.length > 3 ? ` <span class="otd-born-year">+ ${born.length - 3} more</span>` : '';
+  return `<div class="otd-born"><i class="mdi mdi-cake-variant"></i> Born on this day: ${shown.join(' · ')}${more}</div>`;
+}
+
+_renderBirthsOnly(el) {
+  el.innerHTML = `
+        			<div class="otd-header">
+        				<span class="otd-label"><i class="mdi mdi-calendar-today"></i> On This Day in ${SITE.team} History</span>
+        				<span class="otd-actions">${this._otdResetLink()}</span>
+        			</div>
+    ${this._birthsHtml()}`;
+  el.hidden = false;
 }
 
 _renderOnThisDay(el, pick, pool) {
   const { season } = pick;
   const { opponent, resultClass, resultLabel, scoreText, gameTypeLabel, dateStr } = onThisDayView(pick);
 
+  // The same game drawn again, when the birthdays arrive, keeps its photo.
   const photos = this.photosBySeason[season] || [];
-  const photo = photos.length ? photos[Math.floor(Math.random() * photos.length)] : null;
-
-  // ?otd= comes from the address bar, so it is escaped where it becomes HTML:
-  // unescaped, /?otd=<img src=x onerror=…> ran script in the page (CodeQL
-  // alert #2, js/xss). Everything else in the card comes from the CSV and is
-  // escaped too, rather than trusted.
-  const otdParam = new URLSearchParams(window.location.search).get('otd');
-  const resetLink = otdParam
-  ? `<a class="otd-reset" href="${esc(window.location.pathname)}" aria-label="Reset date override">Using ${esc(otdParam)} &times;</a>`
-  : '';
+  const photo = this._otdPick === pick ? this._otdPhoto
+    : (photos.length ? photos[Math.floor(Math.random() * photos.length)] : null);
+  this._otdPick = pick;
+  this._otdPhoto = photo;
+  const resetLink = this._otdResetLink();
 
   el.innerHTML = `
         			<div class="otd-header">
@@ -1226,6 +1270,7 @@ _renderOnThisDay(el, pick, pool) {
         					<div class="otd-date">${esc(dateStr)}, ${esc(season)}</div>
         				</div>
         			</div>
+    ${this._birthsHtml()}
 `;
 el.hidden = false;
 
