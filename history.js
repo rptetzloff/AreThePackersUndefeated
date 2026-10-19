@@ -6,7 +6,7 @@
 import { parseGames, computeSeasonHistory, historyCopy } from './records-core.js';
 import { parseCoachesCsv, computeCoaches } from './coaches-core.js';
 import { buildChartSvg, METRICS } from './history-chart.js';
-import { shareButtonsHtml, wireShareRow } from './share-core.js';
+import { shareButtonsHtml, wireShareRow, wireShareDropdown } from './share-core.js';
 import { SITE } from './site.js';
 
 const chartEl = document.getElementById('history-chart');
@@ -129,9 +129,11 @@ async function init() {
 		});
 		apply();
 
-		const share = document.getElementById('history-share');
-		share.innerHTML = shareButtonsHtml('share-btn', { labels: true });
+		// The page's share buttons live in the footer's Share menu.
+		const share = document.getElementById('footer-share');
+		share.innerHTML = shareButtonsHtml('footer-share-item', { labels: true });
 		wireShareRow(share, historyCopy(histories.regular).desc, `${window.location.origin}/history`, { labels: true });
+		wireShareDropdown();
 	} catch (e) {
 		chartEl.innerHTML = '<p class="record-empty">Could not load the game data. Try again later.</p>';
 		console.error(e);

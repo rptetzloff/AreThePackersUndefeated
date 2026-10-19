@@ -15,6 +15,10 @@ import { records, recordsMeta, isRecordSlug, seasonHistory, historyMeta } from '
 import { coaches, coachesMeta } from './lib/coaches.js';
 import { h2h, h2hMeta, isOpponentSlug } from './lib/h2h.js';
 import { esc } from './records-core.js';
+import { espnTarget } from './lib/espn-target.js';
+import { createEspnCache, browserMaxAge } from './lib/espn-proxy.js';
+import { espnBoxscore } from './lib/espn-box.js';
+import { staticCacheControl } from './lib/static-cache.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
@@ -22,9 +26,17 @@ const PORT = process.env.PORT || 3000;
 
 // Stamp a short content hash onto local asset refs so a new deploy busts the
 // browser cache automatically (main.js?v=<hash>). Change the file -> new hash.
+// Files do not change while the server runs, so each is hashed once: the
+// static handler asks on every versioned request (lib/static-cache.js).
+const assetVersions = new Map();
 function assetVersion(file) {
-  try { return createHash('sha1').update(readFileSync(join(ROOT, file))).digest('hex').slice(0, 8); }
-  catch { return null; }
+  if (!assetVersions.has(file)) {
+    let v = null;
+    try { v = createHash('sha1').update(readFileSync(join(ROOT, file))).digest('hex').slice(0, 8); }
+    catch { /* not a file */ }
+    assetVersions.set(file, v);
+  }
+  return assetVersions.get(file);
 }
 
 // Load an HTML shell: strip any hardcoded <title>/description/OG/Twitter/
@@ -49,11 +61,12 @@ function loadShell(file, assets) {
     return html;
   }, stripped);
 }
-const INDEX_VERSIONED = loadShell('index.html', ['main.js', 'styles.css']);
-const RECORDS_VERSIONED = loadShell('records.html', ['records.js', 'styles.css']);
-const VS_VERSIONED = loadShell('vs.html', ['vs.js', 'styles.css']);
-const HISTORY_VERSIONED = loadShell('history.html', ['history.js', 'styles.css']);
-const COACHES_VERSIONED = loadShell('coaches.html', ['coaches.js', 'styles.css']);
+const INDEX_VERSIONED = loadShell('index.html', ['main.js', 'styles.css', 'theme.js']);
+const RECORDS_VERSIONED = loadShell('records.html', ['records.js', 'styles.css', 'theme.js']);
+const VS_VERSIONED = loadShell('vs.html', ['vs.js', 'styles.css', 'theme.js']);
+const HISTORY_VERSIONED = loadShell('history.html', ['history.js', 'styles.css', 'theme.js']);
+const COACHES_VERSIONED = loadShell('coaches.html', ['coaches.js', 'styles.css', 'theme.js']);
+const GAME_VERSIONED = loadShell('game.html', ['game.js', 'styles.css', 'theme.js']);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -189,15 +202,11 @@ async function serveStatic(req, res, pathname) {
     const st = await stat(file);
     if (st.isDirectory()) throw new Error('dir');
     const body = await readFile(file);
-    const versioned = /[?&]v=/.test(req.url);
     const ext = extname(file).toLowerCase();
-    // Unversioned JS (module imports like records-core.js can't carry ?v=)
-    // and the data CSVs (whose column shape must match the deployed code)
-    // must revalidate on every load, or a deploy can pair fresh code with
-    // hour-stale data/modules.
-    const cache = versioned ? 'public, max-age=31536000, immutable'
-      : ext === '.js' || ext === '.csv' ? 'no-cache'
-      : 'public, max-age=3600';
+    // Immutable only for the version this server has; see lib/static-cache.js.
+    const asked = new URL(req.url, 'http://x').searchParams.get('v');
+    const rel = safe.replace(/\\/g, '/').replace(/^\//, '');
+    const cache = staticCacheControl({ asked, have: asked == null ? null : assetVersion(rel), ext });
     res.writeHead(200, {
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Cache-Control': cache,
@@ -212,10 +221,105 @@ async function serveStatic(req, res, pathname) {
   }
 }
 
+// /api/espn/<path>: the three ESPN endpoints the pages call, through the
+// cache in lib/espn-proxy.js. Anything not on lib/espn-target.js's list 404s.
+const espn = createEspnCache();
+async function serveEspnProxy(res, path, search) {
+  const target = espnTarget(path, search);
+  if (!target) return notFound(res);
+  const got = await espn.get(target);
+  if (!got) {
+    res.writeHead(502, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ error: 'ESPN unreachable' }));
+  }
+  res.writeHead(got.status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': `public, max-age=${browserMaxAge(got)}`,
+    'X-Proxy-Cache': got.cacheState,
+  });
+  res.end(got.body);
+}
+
+// A game's box score, from ESPN: /game/<ESPN event id> and its data at
+// /api/boxscore/<id>. Reduced once per summary fetched (lib/espn-box.js),
+// however many viewers ask in between; the summary itself comes through
+// the same cache as the proxy, so a live game is 15 seconds old at most.
+const ESPN_GAME_ID = /^\d{6,12}$/;
+const boxMemo = new Map(); // event id -> { at, box }
+// A game in progress also reads this week's scoreboard, through the same
+// cache, for its clock, scores and situation: the summary has no timeouts
+// left, often no one in possession, and can be a refresh behind
+// (lib/espn-box.js).
+async function espnBox(eventId) {
+  const got = await espn.get(espnTarget('apis/site/v2/sports/football/nfl/summary', `event=${eventId}`));
+  if (!got || got.status !== 200) return null;
+  let summary;
+  try { summary = JSON.parse(got.body); } catch { return null; }
+  const live = summary?.header?.competitions?.[0]?.status?.type?.state === 'in';
+  const sb = live ? await espn.get(espnTarget('apis/site/v2/sports/football/nfl/scoreboard')) : null;
+  const key = `${got.at}|${sb?.at ?? ''}`;
+  const memo = boxMemo.get(eventId);
+  if (memo && memo.key === key) return memo.box;
+  let scoreboard = null;
+  if (sb?.status === 200) {
+    try { scoreboard = JSON.parse(sb.body).events?.find((e) => String(e.id) === String(eventId))?.competitions?.[0] || null; } catch { /* not on it */ }
+  }
+  let box = null;
+  try { box = espnBoxscore(summary, { scoreboard }); } catch { /* not a game */ }
+  if (boxMemo.size > 100) boxMemo.clear();
+  boxMemo.set(eventId, { key, box });
+  return box;
+}
+
+async function serveBoxscoreApi(res, eventId) {
+  const box = await espnBox(eventId);
+  if (!box) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ error: 'Game not found' }));
+  }
+  // A final box score is settled; one in progress changes every play, and
+  // the page asks every 15 seconds.
+  const maxAge = box.final ? 3600 : box.live ? 5 : 60;
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': `public, max-age=${maxAge}` });
+  res.end(JSON.stringify(box));
+}
+
+async function serveGameHtml(req, res, eventId) {
+  const box = await espnBox(eventId);
+  if (!box) return notFound(res);
+  const origin = originOf(req);
+  const { away, home } = box;
+  const matchup = `${away.name} @ ${home.name}`;
+  const score = `${away.short} ${away.score}, ${home.short} ${home.score}`;
+  const desc = box.final ? `Box score: ${score} (${box.date}).`
+    : box.live ? `Live: ${score}, ${box.status}.`
+    : `${matchup}, ${box.date}.`;
+  return sendPage(res, GAME_VERSIONED, {
+    title: box.state === 'pre' ? `${matchup} — ${box.date}` : `${score} — ${box.date}`,
+    desc, img: `${origin}/og/default.png`, canonical: `${origin}/game/${eventId}`,
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
     const pathname = decodeURIComponent(url.pathname);
+
+    const boxApi = pathname.match(/^\/api\/boxscore\/(\d+)$/);
+    if (boxApi) {
+      if (!ESPN_GAME_ID.test(boxApi[1])) return notFound(res);
+      return await serveBoxscoreApi(res, boxApi[1]);
+    }
+    if (pathname.startsWith('/game/')) {
+      // Only an ESPN event id gets the page; anything else 404s rather than
+      // falling through to the home page.
+      const game = pathname.match(/^\/game\/(\d+)\/?$/);
+      if (!game || !ESPN_GAME_ID.test(game[1])) return notFound(res);
+      return await serveGameHtml(req, res, game[1]);
+    }
+
+    if (pathname.startsWith('/api/espn/'))
+      return await serveEspnProxy(res, pathname.slice('/api/espn/'.length), url.search);
 
     const ogRec = pathname.match(/^\/og\/records\/([a-z-]+)\.png$/);
     if (ogRec) {

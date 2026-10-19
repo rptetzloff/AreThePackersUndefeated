@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packers Game</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+    <!-- Absolute asset paths: this shell is served at /game/<id>, where relative paths would break. -->
+    <!-- The saved theme, applied before the page paints (theme.js). -->
+    <script>try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container records-container game-container">
+        <a href="/" class="records-back"><i class="mdi mdi-arrow-left"></i> Are the Packers Undefeated?</a>
+        <div id="game-loading" class="loading">Loading game…</div>
+        <div id="game-error" class="answer" hidden></div>
+        <div id="game-root"></div>
+        <p class="data-credit">Game data from ESPN.</p>
+    </div>
+
+    <footer class="site-footer">
+        <nav class="footer-nav" aria-label="Site">
+            <a href="/" class="footer-nav-link"><i class="mdi mdi-home-outline"></i><span class="footer-nav-label">Home</span></a>
+            <a href="/records.html" class="footer-nav-link"><i class="mdi mdi-trophy-outline"></i><span class="footer-nav-label">Records</span></a>
+            <a href="/vs.html" class="footer-nav-link"><i class="mdi mdi-sword-cross"></i><span class="footer-nav-label footer-label-full">Head-to-Head</span><span class="footer-nav-label footer-label-short">H2H</span></a>
+            <a href="/history.html" class="footer-nav-link"><i class="mdi mdi-chart-line"></i><span class="footer-nav-label">History</span></a>
+            <a href="/coaches.html" class="footer-nav-link"><i class="mdi mdi-whistle-outline"></i><span class="footer-nav-label">Coaches</span></a>
+            <a href="https://github.com/rptetzloff/AreThePackersUndefeated" target="_blank" rel="noopener noreferrer" class="footer-nav-link footer-github"><i class="mdi mdi-github"></i><span class="footer-nav-label">GitHub</span></a>
+        </nav>
+    </footer>
+
+    <script src="/game.js" type="module"></script>
+    <script src="/theme.js" defer></script>
+</body>
+</html>
