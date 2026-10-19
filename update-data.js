@@ -14,6 +14,7 @@
 
 import { createWriteStream, readFileSync, writeFileSync } from 'fs';
 import https from 'https';
+import { splitCsvLine } from './records-core.js';
 
 const NFLVERSE_URL =
     'https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv';
@@ -40,11 +41,14 @@ function fetchText(url) {
     });
 }
 
+// Quoted fields are real in games.csv (99 rows carry "" for an empty roof
+// or surface), so lines split with the site's own CSV splitter rather than
+// on every comma, which kept the two quote characters as the value.
 function parseCsv(raw) {
     const lines = raw.trim().split('\n');
-    const headers = lines[0].split(',');
+    const headers = splitCsvLine(lines[0]);
     return lines.slice(1).map(line => {
-        const vals = line.split(',');
+        const vals = splitCsvLine(line);
         const obj = {};
         headers.forEach((h, i) => { obj[h.trim()] = (vals[i] ?? '').trim(); });
         return obj;
@@ -138,8 +142,29 @@ function mapNflverseRow(r) {
         packers_score: packersScore,
         opponent_score: oppScore,
         location,
+        // ESPN's id for the game, for its box score page, and the game-day
+        // details ESPN's summary does not carry. nflverse has these for every
+        // game it lists, 1999 on; earlier rows leave them empty.
+        espn_id: clean(r.espn),
+        stadium: clean(r.stadium),
+        roof: clean(r.roof),
+        surface: clean(r.surface),
+        temp: clean(r.temp),
+        wind: clean(r.wind),
+        referee: clean(r.referee),
     };
 }
+
+// nflverse writes a missing value as NA or an empty string.
+function clean(v) {
+    const t = String(v ?? '').trim();
+    return t === 'NA' ? '' : t;
+}
+
+// The columns a kept row takes from nflverse on every run. A row that
+// already has its result is otherwise left alone (see main), which would
+// leave every game played before these columns existed without them.
+const GAME_DAY = ['espn_id', 'stadium', 'roof', 'surface', 'temp', 'wind', 'referee'];
 
 function buildSeasonRecords(games) {
     const seasons = {};
@@ -161,14 +186,22 @@ function buildSeasonRecords(games) {
     return Object.values(seasons).sort((a, b) => a.season - b.season);
 }
 
+// A field with a comma or a quote is quoted, as CSV has it; a stadium or a
+// referee's name could carry either.
+function csvField(v) {
+    const t = String(v ?? '');
+    return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+}
+
 function rowToCsv(r) {
     return [
         r.date, r.season, r.regular_season, r.playoff, r.superbowl,
         r.Opponent, r['Packers Win'], r.packers_score, r.opponent_score, r.location,
-    ].join(',');
+        ...GAME_DAY.map(k => r[k] ?? ''),
+    ].map(csvField).join(',');
 }
 
-const GAMES_HEADER = 'date,season,regular_season,playoff,superbowl,Opponent,Packers Win,packers_score,opponent_score,location';
+const GAMES_HEADER = ['date,season,regular_season,playoff,superbowl,Opponent,Packers Win,packers_score,opponent_score,location', ...GAME_DAY].join(',');
 const RECORDS_HEADER = 'season,reg_w,reg_l,reg_t,post_w,post_l,post_t';
 
 async function main() {
@@ -202,7 +235,9 @@ async function main() {
         const existing = existingMap.get(key);
         if (existing && existing['Packers Win'] !== '') {
             kept++;
-            return existing;
+            // Its result stays as it was; its game-day columns are refreshed.
+            const gameDay = Object.fromEntries(GAME_DAY.map(k => [k, incoming[k]]));
+            return { ...existing, ...gameDay };
         }
         updated++;
         return incoming;
