@@ -1,40 +1,58 @@
-name: Update Packers Data
+name: Check Packers Data
 
+# A weekly check, not a weekly commit. This job used to regenerate the games
+# CSV and push it to main, and from 15 September 2026 every push was refused:
+# main takes changes only through a pull request with code scanning. A weekly
+# merge to keep the site current was the wrong shape anyway, and the site no
+# longer needs one: the season being played is counted from ESPN at runtime
+# (lib/current-season.js), and the CSV only has to hold the seasons before
+# it. So this regenerates the data, runs the tests against it, and says in the
+# run's summary whether the committed CSV has fallen behind and by which
+# games. Bringing it up to date is a pull request, by hand, when it matters:
+# after the season ends.
 on:
   # Tuesday 10:00 UTC — covers Monday night games that finish late
   schedule:
     - cron: '0 10 * * 2'
-  # Allow manual runs from the Actions tab at any time
   workflow_dispatch:
 
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+permissions:
+  contents: read
 
+jobs:
+  check:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout dev
         uses: actions/checkout@v4
+        with:
+          ref: dev
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
-      - name: Fetch latest game data
+      - name: Regenerate the games data from nflverse
         run: node update-data.js
 
-      - name: Check for changes
-        id: diff
-        run: |
-          git diff --quiet data/ || echo "changed=true" >> "$GITHUB_OUTPUT"
+      # The regenerated data must still pass, or a change in nflverse's file
+      # is found here rather than in the next data pull request.
+      - name: Run the tests against it
+        run: node --test
 
-      - name: Commit updated CSVs
-        if: steps.diff.outputs.changed == 'true'
+      - name: Report whether the committed CSV is behind
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/packers_games.csv data/packers_season_records.csv
-          git commit -m "chore: update Packers game data [skip ci]"
-          git push
+          {
+            echo "## Games data"
+            if git diff --quiet data/; then
+              echo "The committed CSV matches nflverse. Nothing to do."
+            else
+              echo "The committed CSV is behind nflverse. The site counts the season being played from ESPN, so nothing is wrong on it; bring the CSV up to date with a pull request when convenient, and certainly after the season ends."
+              echo
+              echo "Games nflverse has that the CSV does not:"
+              echo '```'
+              git diff --unified=0 data/packers_games.csv | grep '^+[0-9]' | cut -c2- || true
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,7 +1,8 @@
 // Head-to-Head page: all-time record vs every opponent (h2h-core.js, shared
 // with the server), with a filterable table and a shareable focus card per
 // opponent at /vs/<slug>.
-import { parseGames, formatDate, esc } from './records-core.js';
+import { formatDate, esc } from './records-core.js';
+import { loadGames } from './games-client.js';
 import { computeHeadToHead, h2hCopy, streakSentence } from './h2h-core.js';
 import { shareButtonsHtml, wireShareRow } from './share-core.js';
 import { sortItems, wireSortHeaders } from './sortable.js';
@@ -59,9 +60,8 @@ function requestedSlug(data) {
 async function init() {
 	const wrap = document.getElementById('h2h-table-wrap');
 	try {
-		const res = await fetch('/data/packers_games.csv');
-		if (!res.ok) throw new Error(`CSV fetch failed: ${res.status}`);
-		const rows = parseGames(await res.text());
+		// The season being played counts, from ESPN (games-client.js).
+		const { games: rows } = await loadGames();
 		// The focus card and share copy always use the full all-time data;
 		// the venue/type filters recompute a fresh table from the raw rows.
 		const allTime = computeHeadToHead(rows);

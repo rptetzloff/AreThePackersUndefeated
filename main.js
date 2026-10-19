@@ -1,6 +1,7 @@
-        import { parseGames, parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml, esc, seasonBeingPlayed } from './records-core.js';
+        import { parseGamesCsv, computeSeasonHistory, localDate, seasonTally, onThisDayCandidates, onThisDayPool, onThisDayView, streakBannerHtml, esc, seasonBeingPlayed } from './records-core.js';
 import { SITE } from './site.js';
 import { scheduleListHtml, monthChipsHtml } from './schedule-core.js';
+import { loadGames } from './games-client.js';
 import { withScoreboard } from './scoreboard-core.js';
 import { fieldTrackerHtml } from './field-core.js';
 import { gameSummaryHtml, gameTitle } from './game-core.js';
@@ -47,15 +48,18 @@ import { seasonVerdict } from './lib/season-state.js';
         				});
         			});
 
-        			const [gamesRes, recordsRes, photosRes] = await Promise.all([
-        				fetch('./data/packers_games.csv'),
+        			const [loaded, recordsRes, photosRes] = await Promise.all([
+        				loadGames().catch(() => null),
         				fetch('./data/packers_season_records.csv'),
         				fetch('./data/photos.csv'),
         			]);
-        			if (gamesRes.ok) {
-        				const raw = await gamesRes.text();
-        				const games = parseGames(raw);
-        				this.csvBySeason = buildSeasonMap(games);
+        			if (loaded) {
+        				// The season map is the file's alone: it decides which seasons
+        				// are read from the CSV, and the season being played is read
+        				// from ESPN. Head-to-head and the history spark count every
+        				// game, the season being played included (games-client.js).
+        				const { games, fileGames } = loaded;
+        				this.csvBySeason = buildSeasonMap(fileGames);
         				// name -> all-time head-to-head entry, for schedule annotations
         				this.h2hByName = new Map(computeHeadToHead(games).opponents.map(o => [o.name, o]));
         				this.seasonHistory = computeSeasonHistory(games);

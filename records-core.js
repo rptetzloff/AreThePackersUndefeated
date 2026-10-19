@@ -84,6 +84,19 @@ export function seasonBeingPlayed(now = new Date()) {
 	return now.getMonth() <= 1 ? now.getFullYear() - 1 : now.getFullYear();
 }
 
+/**
+ * Every game, with the season being played counted from ESPN: `current` (its
+ * rows, parsed like the CSV's, from /api/current/games.csv) replaces the
+ * CSV's rows for `season`. The CSV holds some of that season too, once
+ * regenerated, and appending would count those games twice. With no
+ * `current` (ESPN unreachable) the CSV's rows stand, as far as they go.
+ */
+export function poolCurrentSeason(games, current, season) {
+	if (!current) return games;
+	const s = String(season);
+	return [...games.filter((g) => String(g.season) !== s), ...current];
+}
+
 export function formatDate(iso) {
 	const [y, m, d] = iso.split('-').map((n) => parseInt(n, 10));
 	return `${MONTHS[m - 1]} ${d}, ${y}`;
