@@ -1173,9 +1173,13 @@ _renderOnThisDay(el, pick, pool) {
   const photos = this.photosBySeason[season] || [];
   const photo = photos.length ? photos[Math.floor(Math.random() * photos.length)] : null;
 
+  // ?otd= comes from the address bar, so it is escaped where it becomes HTML:
+  // unescaped, /?otd=<img src=x onerror=…> ran script in the page (CodeQL
+  // alert #2, js/xss). Everything else in the card comes from the CSV and is
+  // escaped too, rather than trusted.
   const otdParam = new URLSearchParams(window.location.search).get('otd');
   const resetLink = otdParam
-  ? `<a class="otd-reset" href="${window.location.pathname}" aria-label="Reset date override">Using ${otdParam} &times;</a>`
+  ? `<a class="otd-reset" href="${esc(window.location.pathname)}" aria-label="Reset date override">Using ${esc(otdParam)} &times;</a>`
   : '';
 
   el.innerHTML = `
@@ -1187,18 +1191,18 @@ _renderOnThisDay(el, pick, pool) {
         				</span>
         			</div>
         			<div class="otd-body">
-    ${photo ? `<a href="${photo.url}" target="_blank" rel="noopener noreferrer" class="otd-photo-link"><img class="otd-photo" src="${photo.url}" alt="${photo.caption || ''}" loading="lazy"></a>` : ''}
+    ${photo ? `<a href="${esc(photo.url)}" target="_blank" rel="noopener noreferrer" class="otd-photo-link"><img class="otd-photo" src="${esc(photo.url)}" alt="${esc(photo.caption || '')}" loading="lazy"></a>` : ''}
         				<div class="otd-info">
         					<div class="otd-season-link">
         						<a href="/${season}" class="otd-year">${season} Season</a>
-        						<span class="otd-game-type">${gameTypeLabel}</span>
+        						<span class="otd-game-type">${esc(gameTypeLabel)}</span>
         					</div>
         					<div class="otd-game-row">
-        						<span class="otd-result-badge ${resultClass}">${resultLabel}</span>
-        						<span class="otd-matchup">vs. ${opponent}</span>
-    ${scoreText ? `<span class="otd-score">${scoreText}</span>` : ''}
+        						<span class="otd-result-badge ${esc(resultClass)}">${esc(resultLabel)}</span>
+        						<span class="otd-matchup">vs. ${esc(opponent)}</span>
+    ${scoreText ? `<span class="otd-score">${esc(scoreText)}</span>` : ''}
         					</div>
-        					<div class="otd-date">${dateStr}, ${season}</div>
+        					<div class="otd-date">${esc(dateStr)}, ${esc(season)}</div>
         				</div>
         			</div>
 `;

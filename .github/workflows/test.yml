@@ -9,6 +9,12 @@ on:
     branches: ['**']
   pull_request:
 
+# The suite reads the checkout and writes nothing, so the token can read and
+# no more. Without this block it got the repository's default, which CodeQL
+# flagged (alert #1, actions/missing-workflow-permissions).
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
